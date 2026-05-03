@@ -316,7 +316,7 @@ function Login({ onLogin, allUsers }) {
   );
 }
 
-function AdminApp({ user, onLogout, allReports, setAllReports, allTrials, students, setStudents, teachers, setTeachers, parents, setParents }) {
+function AdminApp({ user, onLogout, allReports, setAllReports, allTrials, students, setStudents, teachers, setTeachers, parents, setParents, allReviews }) {
   const [tab, setTab] = useState("home");
   const [modal, setModal] = useState(null);
   const [notif, setNotif] = useState(null);
@@ -363,6 +363,7 @@ function AdminApp({ user, onLogout, allReports, setAllReports, allTrials, studen
     { key: "reports", icon: "📋", label: "Отчёты" },
     { key: "finance", icon: "💰", label: "Финансы" },
     { key: "schedule", icon: "📅", label: "Расписание" },
+    { key: "reviews", icon: "⭐", label: "Отзывы" },
     { key: "library", icon: "📚", label: "Книги" },
   ];
 
@@ -414,6 +415,26 @@ function AdminApp({ user, onLogout, allReports, setAllReports, allTrials, studen
                 ))}
             </Card>
           </div>
+          {allReviews.length > 0 && (
+            <Card style={{ marginTop: 16 }}>
+              <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12 }}>⭐ Отзывы родителей</div>
+              {allReviews.slice(0, 3).map(rv => (
+                <div key={rv.id} style={{ padding: "10px 0", borderBottom: `1px solid ${C.border}` }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <Av l={rv.parentName[0]} color="#8B6BB5" size={28} />
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 13 }}>{rv.parentName}</div>
+                        <div style={{ fontSize: 11, color: C.muted }}>👦 {rv.studentName} · {rv.date}</div>
+                      </div>
+                    </div>
+                    <Stars rating={rv.rating} />
+                  </div>
+                  {rv.text && <div style={{ fontSize: 13, color: C.muted, paddingLeft: 36 }}>💬 {rv.text}</div>}
+                </div>
+              ))}
+            </Card>
+          )}
         </div>
       )}
 
@@ -446,6 +467,94 @@ function AdminApp({ user, onLogout, allReports, setAllReports, allTrials, studen
               );
             })}
           </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 }}>
+            {teachers.map(t => {
+              const myS = students.filter(s => s.teacherId === t.id);
+              const myR = allReports.filter(r => r.teacherId === t.id);
+              const myRv = allReviews.filter(rv => rv.teacherId === t.id);
+              return (
+                <Card key={t.id} style={{ borderTop: `4px solid ${t.color}`, cursor: "pointer" }} onClick={() => setModal({ type: "teacherDetail", data: t })}>
+                  <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 12 }}>
+                    <Av l={t.avatar} color={t.color} size={46} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 800, fontSize: 15 }}>{t.name}</div>
+                      <div style={{ fontSize: 12, color: C.muted }}>{t.subject}</div>
+                    </div>
+                    <button onClick={e => { e.stopPropagation(); setConfirmDelete({ type: "teacher", id: t.id, name: t.name }); }}
+                      style={{ background: C.danger + "15", border: "none", borderRadius: 8, padding: "5px 8px", cursor: "pointer", fontSize: 14, color: C.danger }}>🗑️</button>
+                  </div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+                    <Badge text={`${myS.length} учеников`} color={t.color} />
+                    <Badge text={`${myR.length} отчётов`} color={C.blue} />
+                    <Badge text={`${myRv.length} отзывов`} color="#8B6BB5" />
+                    <Badge text={`${t.salary || 600} сом`} color={C.warning} />
+                  </div>
+                  {t.phone && <div style={{ fontSize: 12, color: C.muted, marginBottom: 6 }}>📞 {t.phone}</div>}
+                  <div style={{ fontSize: 12, background: C.blueLight, borderRadius: 8, padding: "6px 10px", color: C.blueDark, fontWeight: 600 }}>🔑 {t.login}</div>
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 8, textAlign: "center" }}>👆 Нажми для подробностей</div>
+                </Card>
+              );
+            })}
+          </div>
+
+          {/* TEACHER DETAIL MODAL */}
+          <Modal open={modal?.type === "teacherDetail"} onClose={() => setModal(null)} title="👩‍🏫 Профиль педагога">
+            {modal?.data && (() => {
+              const t = modal.data;
+              const myS = students.filter(s => s.teacherId === t.id);
+              const myR = allReports.filter(r => r.teacherId === t.id);
+              const myRv = allReviews.filter(rv => rv.teacherId === t.id);
+              const avgRating = myR.length ? (myR.reduce((s,r) => s + r.rating, 0) / myR.length).toFixed(1) : "—";
+              const totalPay = myR.filter(r => r.paymentReceived).reduce((s,r) => s + r.paymentAmount, 0);
+              return (
+                <div>
+                  <div style={{ display: "flex", gap: 14, alignItems: "center", marginBottom: 16, background: t.color + "15", borderRadius: 12, padding: 14, border: `2px solid ${t.color}30` }}>
+                    <Av l={t.avatar} color={t.color} size={52} />
+                    <div>
+                      <div style={{ fontWeight: 900, fontSize: 18 }}>{t.name}</div>
+                      <div style={{ fontSize: 13, color: C.muted }}>{t.subject}</div>
+                      {t.phone && <div style={{ fontSize: 12, color: C.muted }}>📞 {t.phone}</div>}
+                    </div>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+                    {[
+                      { icon: "👦", label: "Учеников", val: myS.length, color: t.color },
+                      { icon: "📋", label: "Отчётов", val: myR.length, color: C.blue },
+                      { icon: "⭐", label: "Ср. оценка", val: avgRating, color: C.warning },
+                      { icon: "💰", label: "Принято", val: totalPay + " сом", color: C.success },
+                    ].map((s,i) => (
+                      <div key={i} style={{ background: C.blueLight, borderRadius: 10, padding: 10, textAlign: "center" }}>
+                        <div style={{ fontSize: 18 }}>{s.icon}</div>
+                        <div style={{ fontWeight: 900, fontSize: 16, color: s.color }}>{s.val}</div>
+                        <div style={{ fontSize: 10, color: C.muted }}>{s.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 8 }}>👦 Ученики</div>
+                    {myS.length === 0 ? <div style={{ color: C.muted, fontSize: 13 }}>Нет учеников</div>
+                      : myS.map(s => <div key={s.id} style={{ padding: "6px 0", borderBottom: `1px solid ${C.border}`, fontSize: 13 }}>{s.name} · {s.grade}</div>)}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 8 }}>⭐ Отзывы родителей ({myRv.length})</div>
+                    {myRv.length === 0
+                      ? <div style={{ color: C.muted, fontSize: 13, textAlign: "center", padding: 12 }}>🐼 Отзывов пока нет</div>
+                      : myRv.map(rv => (
+                        <div key={rv.id} style={{ background: C.blueLight, borderRadius: 10, padding: 12, marginBottom: 8 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                            <div style={{ fontWeight: 700, fontSize: 13 }}>{rv.parentName}</div>
+                            <Stars rating={rv.rating} />
+                          </div>
+                          <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>👦 {rv.studentName} · 📅 {rv.date}</div>
+                          {rv.text && <div style={{ fontSize: 13 }}>💬 {rv.text}</div>}
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              );
+            })()}
+          </Modal>
+
           <Modal open={modal === "addTeacher"} onClose={() => setModal(null)} title="🐼 Новый педагог">
             <FInput label="ИМЯ ПЕДАГОГА" value={newT.name} onChange={v => setNewT(p => ({...p, name: v}))} placeholder="Иванова Айгуль" required />
             <FInput label="ПРЕДМЕТ" value={newT.subject} onChange={v => setNewT(p => ({...p, subject: v}))} placeholder="Математика" />
@@ -686,6 +795,32 @@ function AdminApp({ user, onLogout, allReports, setAllReports, allTrials, studen
         </div>
       )}
 
+      {tab === "reviews" && (
+        <div>
+          <PageTitle emoji="⭐" title="Отзывы родителей" />
+          {allReviews.length === 0
+            ? <Card><div style={{ color: C.muted, textAlign: "center", padding: 40, fontSize: 14 }}>🐼 Отзывов пока нет</div></Card>
+            : allReviews.map(rv => (
+              <Card key={rv.id} style={{ marginBottom: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                  <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                    <Av l={rv.parentName[0]} color="#8B6BB5" size={40} />
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: 15 }}>{rv.parentName}</div>
+                      <div style={{ fontSize: 12, color: C.muted }}>👦 {rv.studentName} · 📅 {rv.date}</div>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                    <Stars rating={rv.rating} />
+                    <Badge text={rv.satisfied ? "😊 Доволен" : "😔 Не доволен"} color={rv.satisfied ? C.success : C.danger} />
+                  </div>
+                </div>
+                {rv.text && <div style={{ background: C.blueLight, borderRadius: 10, padding: 12, fontSize: 14, color: C.text }}>💬 {rv.text}</div>}
+              </Card>
+            ))}
+        </div>
+      )}
+
       {tab === "library" && (
         <div>
           <PageTitle emoji="📚" title="Книги и материалы" />
@@ -778,7 +913,7 @@ function AdminApp({ user, onLogout, allReports, setAllReports, allTrials, studen
   );
 }
 
-function TeacherApp({ user, onLogout, onReport, onTrial, students }) {
+function TeacherApp({ user, onLogout, onReport, onTrial, students, allReviews }) {
   const [tab, setTab] = useState("home");
   const [myReports, setMyReports] = useState([]);
   const [notif, setNotif] = useState(null);
@@ -856,6 +991,7 @@ function TeacherApp({ user, onLogout, onReport, onTrial, students }) {
     { key: "results", icon: "📊", label: "Итоги" },
     { key: "library", icon: "📚", label: "Книги" },
     { key: "history", icon: "🕐", label: "История" },
+    { key: "myreviews", icon: "⭐", label: "Мои отзывы" },
   ];
 
   return (
@@ -1082,6 +1218,29 @@ function TeacherApp({ user, onLogout, onReport, onTrial, students }) {
             ))}
         </div>
       )}
+
+      {tab === "myreviews" && (
+        <div>
+          <PageTitle emoji="⭐" title="Отзывы про меня" />
+          {(allReviews || []).filter(rv => rv.teacherId === user.id).length === 0
+            ? <Card><div style={{ color: C.muted, textAlign: "center", padding: 40 }}>🐼 Отзывов пока нет</div></Card>
+            : (allReviews || []).filter(rv => rv.teacherId === user.id).map(rv => (
+              <Card key={rv.id} style={{ marginBottom: 14, borderLeft: `4px solid ${user.color}` }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                    <Av l={rv.parentName[0]} color="#8B6BB5" size={36} />
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: 14 }}>{rv.parentName}</div>
+                      <div style={{ fontSize: 12, color: C.muted }}>👦 {rv.studentName} · 📅 {rv.date}</div>
+                    </div>
+                  </div>
+                  <Stars rating={rv.rating} />
+                </div>
+                {rv.text && <div style={{ background: C.blueLight, borderRadius: 10, padding: 12, fontSize: 14 }}>💬 {rv.text}</div>}
+              </Card>
+            ))}
+        </div>
+      )}
     </Layout>
   );
 }
@@ -1092,9 +1251,11 @@ const TEST_REPORTS = [
   { id: 103, teacherId: 1, teacherName: "Айгуль Бекова", teacherAvatar: "А", teacherColor: "#3A8CC7", studentId: 1, studentName: "Алина Сейткали", topic: "Чтение и письмо", notes: "Читает хорошо, скорость улучшилась!", homework: "Прочитать рассказ стр. 30-35", rating: 5, date: "25.04.2025", paymentReceived: false, paymentAmount: 0, files: [] },
 ];
 
-function ParentApp({ user, onLogout, students, reports, teachers }) {
+function ParentApp({ user, onLogout, students, reports, teachers, onReview, myReviews = [] }) {
   const [tab, setTab] = useState("home");
   const [sideOpen, setSideOpen] = useState(true);
+  const [rv, setRv] = useState({ rating: 5, text: "", teacherId: "" });
+  const [rvSent, setRvSent] = useState(false);
   const student = students.find(s => s.id === user.studentId);
   const teacher = teachers.find(t => t.id === student?.teacherId);
   const myReports = [...TEST_REPORTS.filter(r => r.studentId === user.studentId), ...reports.filter(r => r.studentId === user.studentId)];
@@ -1108,6 +1269,7 @@ function ParentApp({ user, onLogout, students, reports, teachers }) {
     { key: "schedule", icon: "📅", label: "Расписание" },
     { key: "progress", icon: "📈", label: "Прогресс" },
     { key: "payments", icon: "💰", label: "Оплаты" },
+    { key: "review", icon: "⭐", label: "Отзыв" },
   ];
 
   return (
@@ -1297,6 +1459,62 @@ function ParentApp({ user, onLogout, students, reports, teachers }) {
             </Card>
           </div>
         )}
+
+        {tab === "review" && (
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 900, color: C.text, marginBottom: 4 }}>⭐ Оставить отзыв</div>
+            <div style={{ color: C.muted, fontSize: 13, marginBottom: 20 }}>Ваше мнение очень важно для нас!</div>
+            {rvSent ? (
+              <Card style={{ textAlign: "center", padding: 40 }}>
+                <div style={{ fontSize: 52, marginBottom: 12 }}>🎉</div>
+                <div style={{ fontWeight: 900, fontSize: 20, color: C.success, marginBottom: 8 }}>Спасибо за отзыв!</div>
+                <div style={{ fontSize: 14, color: C.muted, marginBottom: 20 }}>Айданек уже видит ваш отзыв</div>
+                <Btn onClick={() => { setRvSent(false); setRv({ rating: 5, text: "", teacherId: "" }); }} color={C.blue}>Написать ещё раз</Btn>
+              </Card>
+            ) : (
+              <Card style={{ maxWidth: 520 }}>
+                <div style={{ marginBottom: 16 }}>
+                  <Label>ВЫБЕРИТЕ ПЕДАГОГА</Label>
+                  <select value={rv.teacherId} onChange={e => setRv(p => ({...p, teacherId: e.target.value}))}
+                    style={{ width: "100%", padding: "10px 14px", border: `1.5px solid ${C.border}`, borderRadius: 10, fontSize: 14, fontFamily: "inherit", background: C.blueLight }}>
+                    <option value="">— Выберите педагога —</option>
+                    {teachers.map(t => <option key={t.id} value={t.id}>{t.name} · {t.subject}</option>)}
+                  </select>
+                </div>
+                <div style={{ marginBottom: 16 }}>
+                  <Label>ОЦЕНКА ЗАНЯТИЙ</Label>
+                  <Stars rating={rv.rating} onChange={v => setRv(p => ({...p, rating: v}))} />
+                </div>
+                <div style={{ marginBottom: 20 }}>
+                  <Label>ВАШЕ СООБЩЕНИЕ (необязательно)</Label>
+                  <textarea value={rv.text} onChange={e => setRv(p => ({...p, text: e.target.value}))} rows={4} placeholder="Напишите что вам понравилось или что хотите улучшить..."
+                    style={{ width: "100%", padding: "12px", border: `1.5px solid ${C.border}`, borderRadius: 12, fontSize: 14, fontFamily: "inherit", resize: "vertical", boxSizing: "border-box", background: C.blueLight }} />
+                </div>
+                <Btn full color={C.blue} disabled={!rv.teacherId} onClick={() => {
+                  const student = students.find(s => s.id === user.studentId);
+                  const teacher = teachers.find(t => t.id === Number(rv.teacherId));
+                  onReview({ id: Date.now(), parentName: user.name, studentName: student?.name || "", teacherId: Number(rv.teacherId), teacherName: teacher?.name || "", rating: rv.rating, text: rv.text, date: new Date().toLocaleDateString("ru-RU") });
+                  setRvSent(true);
+                }}>⭐ Отправить отзыв</Btn>
+              </Card>
+            )}
+            {myReviews.length > 0 && (
+              <div style={{ marginTop: 20 }}>
+                <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 12, color: C.text }}>📋 Мои отзывы</div>
+                {myReviews.map(rv => (
+                  <Card key={rv.id} style={{ marginBottom: 12, borderLeft: `4px solid #8B6BB5` }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14 }}>👩‍🏫 {rv.teacherName}</div>
+                      <Stars rating={rv.rating} />
+                    </div>
+                    <div style={{ fontSize: 12, color: C.muted, marginBottom: 4 }}>📅 {rv.date}</div>
+                    {rv.text && <div style={{ fontSize: 13, background: C.blueLight, borderRadius: 8, padding: 10 }}>💬 {rv.text}</div>}
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1306,6 +1524,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [allReports, setAllReports] = useState([]);
   const [allTrials, setAllTrials] = useState([]);
+  const [allReviews, setAllReviews] = useState([]);
   const [students, setStudents] = useState(INITIAL_STUDENTS);
   const [teachers, setTeachers] = useState(INITIAL_TEACHERS);
   const [parents, setParents] = useState(INITIAL_PARENTS);
@@ -1313,13 +1532,13 @@ export default function App() {
 
   if (!user) return <Login onLogin={setUser} allUsers={allUsers} />;
   if (user.role === "admin") return (
-    <AdminApp user={user} onLogout={() => setUser(null)} allReports={allReports} setAllReports={setAllReports} allTrials={allTrials} students={students} setStudents={setStudents} teachers={teachers} setTeachers={setTeachers} parents={parents} setParents={setParents} />
+    <AdminApp user={user} onLogout={() => setUser(null)} allReports={allReports} setAllReports={setAllReports} allTrials={allTrials} students={students} setStudents={setStudents} teachers={teachers} setTeachers={setTeachers} parents={parents} setParents={setParents} allReviews={allReviews} />
   );
   if (user.role === "parent") return (
-    <ParentApp user={user} onLogout={() => setUser(null)} students={students} reports={allReports} teachers={teachers} />
+    <ParentApp user={user} onLogout={() => setUser(null)} students={students} reports={allReports} teachers={teachers} onReview={r => setAllReviews(p => [r, ...p])} myReviews={allReviews.filter(r => r.parentName === user.name)} />
   );
   const freshUser = teachers.find(t => t.id === user.id) || user;
   return (
-    <TeacherApp user={freshUser} onLogout={() => setUser(null)} onReport={r => setAllReports(p => [r, ...p])} onTrial={t => setAllTrials(p => [t, ...p])} students={students} />
+    <TeacherApp user={freshUser} onLogout={() => setUser(null)} onReport={r => setAllReports(p => [r, ...p])} onTrial={t => setAllTrials(p => [t, ...p])} students={students} allReviews={allReviews} />
   );
 }
