@@ -445,32 +445,6 @@ function AdminApp({ user, onLogout, allReports, setAllReports, allTrials, studen
             {teachers.map(t => {
               const myS = students.filter(s => s.teacherId === t.id);
               const myR = allReports.filter(r => r.teacherId === t.id);
-              return (
-                <Card key={t.id} style={{ borderTop: `4px solid ${t.color}` }}>
-                  <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 12 }}>
-                    <Av l={t.avatar} color={t.color} size={46} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 800, fontSize: 15 }}>{t.name}</div>
-                      <div style={{ fontSize: 12, color: C.muted }}>{t.subject}</div>
-                    </div>
-                    <button onClick={() => setConfirmDelete({ type: "teacher", id: t.id, name: t.name })}
-                      style={{ background: C.danger + "15", border: "none", borderRadius: 8, padding: "5px 8px", cursor: "pointer", fontSize: 14, color: C.danger }}>🗑️</button>
-                  </div>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
-                    <Badge text={`${myS.length} учеников`} color={t.color} />
-                    <Badge text={`${myR.length} отчётов`} color={C.blue} />
-                    <Badge text={`${t.salary || 600} сом`} color={C.warning} />
-                  </div>
-                  {t.phone && <div style={{ fontSize: 12, color: C.muted, marginBottom: 6 }}>📞 {t.phone}</div>}
-                  <div style={{ fontSize: 12, background: C.blueLight, borderRadius: 8, padding: "6px 10px", color: C.blueDark, fontWeight: 600 }}>🔑 {t.login}</div>
-                </Card>
-              );
-            })}
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 }}>
-            {teachers.map(t => {
-              const myS = students.filter(s => s.teacherId === t.id);
-              const myR = allReports.filter(r => r.teacherId === t.id);
               const myRv = allReviews.filter(rv => rv.teacherId === t.id);
               return (
                 <Card key={t.id} style={{ borderTop: `4px solid ${t.color}`, cursor: "pointer" }} onClick={() => setModal({ type: "teacherDetail", data: t })}>
