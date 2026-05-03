@@ -1,4 +1,4 @@
-=import { useState, useRef } from "react";
+import { useState, useRef } from "react";
 
 const C = {
   blue: "#6BB8E8", blueDark: "#3A8CC7", blueLight: "#EBF5FC", blueMid: "#B8DDF5",
