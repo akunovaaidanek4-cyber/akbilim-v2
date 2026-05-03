@@ -96,8 +96,8 @@ const PandaLogo = ({ size = 40 }) => (
 const Av = ({ l, color, size = 40 }) => (
   <div style={{ width: size, height: size, borderRadius: "50%", background: color, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 900, fontSize: size * 0.38, flexShrink: 0, boxShadow: `0 2px 8px ${color}55` }}>{l}</div>
 );
-const Card = ({ children, style = {} }) => (
-  <div style={{ background: C.card, borderRadius: 16, padding: 18, boxShadow: "0 2px 16px rgba(107,184,232,0.12)", border: `1px solid ${C.border}`, ...style }}>{children}</div>
+const Card = ({ children, style = {}, onClick }) => (
+  <div onClick={onClick} style={{ background: C.card, borderRadius: 16, padding: 18, boxShadow: "0 2px 16px rgba(107,184,232,0.12)", border: `1px solid ${C.border}`, cursor: onClick ? "pointer" : "default", ...style }}>{children}</div>
 );
 const Btn = ({ onClick, children, color = C.blue, outline = false, small = false, full = false, disabled = false }) => (
   <button onClick={onClick} disabled={disabled} style={{
