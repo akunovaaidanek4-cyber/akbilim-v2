@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+=import { useState, useRef } from "react";
 
 const C = {
   blue: "#6BB8E8", blueDark: "#3A8CC7", blueLight: "#EBF5FC", blueMid: "#B8DDF5",
@@ -43,6 +43,31 @@ const sendTelegram = async (text) => {
       body: JSON.stringify({ chat_id: TG_CHAT, text, parse_mode: "HTML" }),
     });
   } catch (e) { console.log("TG error", e); }
+};
+
+// ☁️ SUPABASE STORAGE
+const SB_URL = "https://odicvebknzkbxgclwlfx.supabase.co";
+const SB_KEY = "sb_publishable_D4ORqqQ1WZdcD9CAWjpvXA_9-GaVcqR";
+
+const uploadFile = async (file) => {
+  try {
+    const ext = file.name.split('.').pop();
+    const fileName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+    const res = await fetch(`${SB_URL}/storage/v1/object/akbilim/${fileName}`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${SB_KEY}`, "Content-Type": file.type },
+      body: file,
+    });
+    if (res.ok) {
+      return {
+        url: `${SB_URL}/storage/v1/object/public/akbilim/${fileName}`,
+        name: file.name,
+        isVideo: file.type.startsWith("video/"),
+      };
+    }
+  } catch (e) { console.log("Upload error", e); }
+  // Если Supabase не работает — используем локальный URL
+  return { url: URL.createObjectURL(file), name: file.name, isVideo: file.type.startsWith("video/") };
 };
 
 const PandaLogo = ({ size = 40 }) => (
@@ -120,26 +145,34 @@ const Stars = ({ rating, onChange }) => (
 
 function FileUpload({ label, files, onChange, required = false }) {
   const ref = useRef();
-  const handleFiles = (e) => {
-    const newFiles = Array.from(e.target.files).map(f => ({
-      name: f.name, type: f.type, url: URL.createObjectURL(f), isVideo: f.type.startsWith("video/"),
-    }));
-    onChange([...files, ...newFiles]);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFiles = async (e) => {
+    setUploading(true);
+    try {
+      const uploaded = await Promise.all(
+        Array.from(e.target.files).map(f => uploadFile(f))
+      );
+      onChange([...files, ...uploaded]);
+    } finally {
+      setUploading(false);
+    }
   };
+
   const remove = (i) => onChange(files.filter((_, idx) => idx !== i));
   return (
     <div style={{ marginBottom: 14 }}>
       <Label>{label}{required && <span style={{ color: C.danger }}> *</span>}</Label>
-      <div onClick={() => ref.current.click()} style={{
+      <div onClick={() => !uploading && ref.current.click()} style={{
         border: `2px dashed ${files.length > 0 ? C.success : required ? C.warning : C.border}`,
-        borderRadius: 12, padding: 16, textAlign: "center", cursor: "pointer",
+        borderRadius: 12, padding: 16, textAlign: "center", cursor: uploading ? "wait" : "pointer",
         background: files.length > 0 ? C.success + "08" : C.blueLight,
       }}>
-        <div style={{ fontSize: 30, marginBottom: 4 }}>{files.length > 0 ? "✅" : "📸"}</div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: files.length > 0 ? C.success : C.muted }}>
-          {files.length > 0 ? `${files.length} файл(ов) прикреплено` : "Нажми — фото или видео с урока"}
+        <div style={{ fontSize: 30, marginBottom: 4 }}>{uploading ? "⏳" : files.length > 0 ? "✅" : "📸"}</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: uploading ? C.warning : files.length > 0 ? C.success : C.muted }}>
+          {uploading ? "Загружаю в облако..." : files.length > 0 ? `${files.length} файл(ов) загружено в облако ☁️` : "Нажми — фото или видео с урока"}
         </div>
-        {required && files.length === 0 && <div style={{ fontSize: 11, color: C.warning, marginTop: 3, fontWeight: 600 }}>⚠️ Обязательно для отправки</div>}
+        {required && files.length === 0 && !uploading && <div style={{ fontSize: 11, color: C.warning, marginTop: 3, fontWeight: 600 }}>⚠️ Обязательно для отправки</div>}
         <input ref={ref} type="file" accept="image/*,video/*" multiple onChange={handleFiles} style={{ display: "none" }} />
       </div>
       {files.length > 0 && (
@@ -229,9 +262,6 @@ const StatCard = ({ icon, val, label, color }) => (
   </Card>
 );
 
-// ══════════════════════════════════════
-// LOGIN
-// ══════════════════════════════════════
 function Login({ onLogin, allUsers }) {
   const [login, setLogin] = useState(""); const [pass, setPass] = useState("");
   const [show, setShow] = useState(false); const [err, setErr] = useState(""); const [loading, setLoading] = useState(false);
@@ -286,9 +316,6 @@ function Login({ onLogin, allUsers }) {
   );
 }
 
-// ══════════════════════════════════════
-// ADMIN APP
-// ══════════════════════════════════════
 function AdminApp({ user, onLogout, allReports, setAllReports, allTrials, students, setStudents, teachers, setTeachers, parents, setParents }) {
   const [tab, setTab] = useState("home");
   const [modal, setModal] = useState(null);
@@ -307,7 +334,6 @@ function AdminApp({ user, onLogout, allReports, setAllReports, allTrials, studen
     setNewS({ name: "", grade: "", address: "", days: [], time: "", teacherId: "", parentPhone: "" });
     setModal(null); toast("🐼 Ученик добавлен!");
   };
-
   const addTeacher = () => {
     if (!newT.name || !newT.login || !newT.password) return;
     const color = TEACHER_COLORS[teachers.length % TEACHER_COLORS.length];
@@ -315,14 +341,12 @@ function AdminApp({ user, onLogout, allReports, setAllReports, allTrials, studen
     setNewT({ name: "", subject: "", phone: "", salary: "600", login: "", password: "" });
     setModal(null); toast(`🎉 Педагог ${newT.name} добавлен!`);
   };
-
   const addParent = () => {
     if (!newP.name || !newP.phone || !newP.password || !newP.studentId) return;
     setParents(prev => [...prev, { id: Date.now(), name: newP.name, phone: newP.phone, login: newP.phone, password: newP.password, studentId: Number(newP.studentId), role: "parent" }]);
     setNewP({ name: "", phone: "", password: "", studentId: "" });
     setModal(null); toast(`👨‍👩‍👧 Родитель ${newP.name} добавлен!`);
   };
-
   const deleteStudent = (id) => { setStudents(prev => prev.filter(s => s.id !== id)); setConfirmDelete(null); toast("🗑️ Ученик удалён"); };
   const deleteTeacher = (id) => { setTeachers(prev => prev.filter(t => t.id !== id)); setStudents(prev => prev.filter(s => s.teacherId !== id)); setConfirmDelete(null); toast("🗑️ Педагог удалён"); };
   const deleteParent = (id) => { setParents(prev => prev.filter(p => p.id !== id)); setConfirmDelete(null); toast("🗑️ Родитель удалён"); };
@@ -393,7 +417,6 @@ function AdminApp({ user, onLogout, allReports, setAllReports, allTrials, studen
         </div>
       )}
 
-      {/* TEACHERS */}
       {tab === "teachers" && (
         <div>
           <PageTitle emoji="👩‍🏫" title="Все учителя" action={<Btn onClick={() => setModal("addTeacher")} color={C.blueDark}>+ Добавить педагога</Btn>} />
@@ -429,7 +452,7 @@ function AdminApp({ user, onLogout, allReports, setAllReports, allTrials, studen
             <FInput label="ТЕЛЕФОН" value={newT.phone} onChange={v => setNewT(p => ({...p, phone: v}))} placeholder="+996 700 ..." />
             <FInput label="ЗАРПЛАТА (сом за урок)" value={newT.salary} onChange={v => setNewT(p => ({...p, salary: v}))} type="number" />
             <div style={{ background: C.blueLight, borderRadius: 12, padding: 14, marginBottom: 4, border: `2px solid ${C.border}` }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: C.blueDark, marginBottom: 10 }}>🔐 Данные для входа в систему</div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: C.blueDark, marginBottom: 10 }}>🔐 Данные для входа</div>
               <FInput label="ЛОГИН" value={newT.login} onChange={v => setNewT(p => ({...p, login: v}))} placeholder="aigul" required />
               <FInput label="ПАРОЛЬ" value={newT.password} onChange={v => setNewT(p => ({...p, password: v}))} placeholder="минимум 6 символов" required />
               <div style={{ fontSize: 11, color: C.muted, fontWeight: 600 }}>💡 Передай логин и пароль педагогу лично</div>
@@ -442,7 +465,6 @@ function AdminApp({ user, onLogout, allReports, setAllReports, allTrials, studen
         </div>
       )}
 
-      {/* STUDENTS */}
       {tab === "students" && (
         <div>
           <PageTitle emoji="👦" title="Все ученики" action={<Btn onClick={() => setModal("addStudent")} color={C.blue}>+ Добавить ученика</Btn>} />
@@ -526,7 +548,6 @@ function AdminApp({ user, onLogout, allReports, setAllReports, allTrials, studen
         </div>
       )}
 
-      {/* PARENTS */}
       {tab === "parents" && (
         <div>
           <PageTitle emoji="👨‍👩‍👧" title="Все родители" action={<Btn onClick={() => setModal("addParent")} color="#8B6BB5">+ Добавить родителя</Btn>} />
@@ -550,9 +571,7 @@ function AdminApp({ user, onLogout, allReports, setAllReports, allTrials, studen
                       <div style={{ fontWeight: 700, fontSize: 13 }}>{student.name} · {student.grade}</div>
                     </div>
                   )}
-                  <div style={{ fontSize: 12, background: C.blueLight, borderRadius: 8, padding: "6px 10px", color: C.blueDark, fontWeight: 600 }}>
-                    🔑 {p.login} / {p.password}
-                  </div>
+                  <div style={{ fontSize: 12, background: C.blueLight, borderRadius: 8, padding: "6px 10px", color: C.blueDark, fontWeight: 600 }}>🔑 {p.login} / {p.password}</div>
                 </Card>
               );
             })}
@@ -680,7 +699,6 @@ function AdminApp({ user, onLogout, allReports, setAllReports, allTrials, studen
         </div>
       )}
 
-      {/* CONFIRM DELETE */}
       <Modal open={!!confirmDelete} onClose={() => setConfirmDelete(null)} title="⚠️ Подтверди удаление">
         <div style={{ textAlign: "center", padding: "10px 0 20px" }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>🗑️</div>
@@ -699,7 +717,6 @@ function AdminApp({ user, onLogout, allReports, setAllReports, allTrials, studen
         </div>
       </Modal>
 
-      {/* REPORT DETAIL */}
       <Modal open={modal?.type === "reportDetail"} onClose={() => setModal(null)} title="📋 Отчёт об уроке">
         {modal?.data && (() => { const r = modal.data; return (
           <div>
@@ -731,7 +748,6 @@ function AdminApp({ user, onLogout, allReports, setAllReports, allTrials, studen
         ); })()}
       </Modal>
 
-      {/* TRIAL DETAIL */}
       <Modal open={modal?.type === "trialDetail"} onClose={() => setModal(null)} title="🧪 Пробный урок">
         {modal?.data && (() => { const t = modal.data; return (
           <div>
@@ -762,9 +778,6 @@ function AdminApp({ user, onLogout, allReports, setAllReports, allTrials, studen
   );
 }
 
-// ══════════════════════════════════════
-// TEACHER APP
-// ══════════════════════════════════════
 function TeacherApp({ user, onLogout, onReport, onTrial, students }) {
   const [tab, setTab] = useState("home");
   const [myReports, setMyReports] = useState([]);
@@ -882,7 +895,7 @@ function TeacherApp({ user, onLogout, onReport, onTrial, students }) {
       {tab === "report" && (
         <Card style={{ maxWidth: 520 }}>
           <div style={{ fontWeight: 900, fontSize: 18, color: C.text, marginBottom: 4 }}>📋 Отчёт об уроке</div>
-          <div style={{ fontSize: 13, color: C.muted, marginBottom: 18 }}>Фото/видео обязательны!</div>
+          <div style={{ fontSize: 13, color: C.muted, marginBottom: 18 }}>Фото/видео обязательны — сохраняются в облаке ☁️</div>
           <FSelect label="УЧЕНИК" value={rf.studentId} onChange={v => setRf(p => ({...p, studentId: v}))} options={myStudents.map(s => ({ value: s.id, label: s.name }))} required />
           <FSelect label="ТЕМА УРОКА" value={rf.topic} onChange={v => setRf(p => ({...p, topic: v}))} options={TOPICS} required />
           {rf.topic === "Другое" && <FInput label="СВОЯ ТЕМА" value={rf.topicCustom} onChange={v => setRf(p => ({...p, topicCustom: v}))} />}
@@ -1055,6 +1068,15 @@ function TeacherApp({ user, onLogout, onReport, onTrial, students }) {
                 </div>
                 <div style={{ fontSize: 13, marginBottom: 4 }}>📚 {r.topic}</div>
                 {r.notes && <div style={{ fontSize: 13, color: C.muted, marginBottom: 4 }}>💬 {r.notes}</div>}
+                {r.files?.length > 0 && (
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                    {r.files.map((f, i) => (
+                      <div key={i} style={{ width: 52, height: 52, borderRadius: 8, overflow: "hidden", background: C.blue, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        {f.isVideo ? <span style={{ fontSize: 20 }}>🎥</span> : <img src={f.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {r.paymentReceived && <div style={{ marginTop: 8 }}><Badge text={`💰 ${r.paymentAmount} сом`} color={C.success} /></div>}
               </Card>
             ))}
@@ -1064,9 +1086,6 @@ function TeacherApp({ user, onLogout, onReport, onTrial, students }) {
   );
 }
 
-// ══════════════════════════════════════
-// PARENT APP
-// ══════════════════════════════════════
 const TEST_REPORTS = [
   { id: 101, teacherId: 1, teacherName: "Айгуль Бекова", teacherAvatar: "А", teacherColor: "#3A8CC7", studentId: 1, studentName: "Алина Сейткали", topic: "Математика", notes: "Алина отлично справилась с дробями!", homework: "Стр. 45, задания 1-5", rating: 5, date: "01.05.2025", paymentReceived: true, paymentAmount: 1400, files: [] },
   { id: 102, teacherId: 1, teacherName: "Айгуль Бекова", teacherAvatar: "А", teacherColor: "#3A8CC7", studentId: 1, studentName: "Алина Сейткали", topic: "Русский язык", notes: "Работали над правописанием. Есть прогресс!", homework: "Написать сочинение на тему 'Моя семья'", rating: 4, date: "28.04.2025", paymentReceived: true, paymentAmount: 1400, files: [] },
@@ -1191,6 +1210,18 @@ function ParentApp({ user, onLogout, students, reports, teachers }) {
                 </div>
                 {r.notes && <div style={{ background: C.blueLight, borderRadius: 10, padding: 12, marginBottom: 10 }}><div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4 }}>КАК ПРОШЁЛ УРОК</div><div style={{ fontSize: 14 }}>💬 {r.notes}</div></div>}
                 {r.homework && <div style={{ background: "#FFF9F0", borderRadius: 10, padding: 12, marginBottom: 10, border: `1px solid ${C.warning}30` }}><div style={{ fontSize: 11, fontWeight: 700, color: C.warning, marginBottom: 4 }}>ДОМАШНЕЕ ЗАДАНИЕ</div><div style={{ fontSize: 14 }}>📝 {r.homework}</div></div>}
+                {r.files?.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 8 }}>ФОТО И ВИДЕО С УРОКА</div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {r.files.map((f,i) => (
+                        <div key={i} style={{ width: 80, height: 80, borderRadius: 10, overflow: "hidden", background: C.blue, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          {f.isVideo ? <span style={{ fontSize: 28 }}>🎥</span> : <img src={f.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {r.paymentReceived && <div style={{ marginTop: 10 }}><span style={{ background: C.success+"18", color: C.success, fontSize: 12, fontWeight: 700, padding: "4px 12px", borderRadius: 20 }}>💰 Оплачено: {r.paymentAmount} сом</span></div>}
               </Card>
             ))}
@@ -1271,9 +1302,6 @@ function ParentApp({ user, onLogout, students, reports, teachers }) {
   );
 }
 
-// ══════════════════════════════════════
-// ROOT
-// ══════════════════════════════════════
 export default function App() {
   const [user, setUser] = useState(null);
   const [allReports, setAllReports] = useState([]);
