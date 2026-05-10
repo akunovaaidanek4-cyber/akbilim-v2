@@ -11,7 +11,7 @@ const C = {
 const ADMIN       = { login: "aydanek",    password: "akbilim2025", name: "Айданек",     role: "admin" };
 const COORDINATOR = { login: "pomoshnica", password: "coord123",    name: "Координатор",   role: "coordinator" };
 
-const INITIAL_TEACHERS
+const INITIAL_TEACHERS = [
   { id: 1, name: "Айгуль Бекова", subject: "Математика", avatar: "А", color: "#3A8CC7", login: "aigul", password: "aigul123", role: "teacher", rate: 600, format: "выезд", duties: "" },
   { id: 2, name: "Нурзат Токтосунова", subject: "Русский язык", avatar: "Н", color: "#5B9E6E", login: "nurzat", password: "nurzat123", role: "teacher", rate: 700, format: "офис", duties: "" },
   { id: 3, name: "Мирлан Осмонов", subject: "Английский язык", avatar: "М", color: "#8B6BB5", login: "mirlan", password: "mirlan123", role: "teacher", rate: 650, format: "онлайн", duties: "" },
