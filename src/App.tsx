@@ -11,10 +11,20 @@ const C = {
 const ADMIN       = { login: "aydanek",    password: "akbilim2025", name: "Айданек",     role: "admin" };
 const COORDINATOR = { login: "pomoshnica", password: "coord123",    name: "Координатор",   role: "coordinator" };
 
-const INITIAL_TEACHERS = [
-  { id: 1, name: "Айгуль Бекова",      subject: "Математика",      avatar: "А", color: "#3A8CC7", login: "aigul",  password: "aigul123",  role: "teacher", rate: 600, format: "выезд",  duties: "Проводить уроки на выезде. Заполнять отчёты после каждого урока с фото." },
-  { id: 2, name: "Нурзат Токтосунова", subject: "Русский язык",    avatar: "Н", color: "#5B9E6E", login: "nurzat", password: "nurzat123", role: "teacher", rate: 700, format: "офис",   duties: "Вести группы в офисе. Следить за посещаемостью. Сдавать отчёт еженедельно." },
-  { id: 3, name: "Мирлан Осмонов",     subject: "Английский язык", avatar: "М", color: "#8B6BB5", login: "mirlan", password: "mirlan123", role: "teacher", rate: 650, format: "онлайн", duties: "Онлайн-уроки через Zoom. Присылать ссылки родителям заранее." },
+const INITIAL_TEACHERS
+  { id: 1, name: "Айгуль Бекова", subject: "Математика", avatar: "А", color: "#3A8CC7", login: "aigul", password: "aigul123", role: "teacher", rate: 600, format: "выезд", duties: "" },
+  { id: 2, name: "Нурзат Токтосунова", subject: "Русский язык", avatar: "Н", color: "#5B9E6E", login: "nurzat", password: "nurzat123", role: "teacher", rate: 700, format: "офис", duties: "" },
+  { id: 3, name: "Мирлан Осмонов", subject: "Английский язык", avatar: "М", color: "#8B6BB5", login: "mirlan", password: "mirlan123", role: "teacher", rate: 650, format: "онлайн", duties: "" },
+  { id: 4, name: "Ахметова Самира", subject: "Математика", avatar: "С", color: "#D4845A", login: "samira", password: "samira2025", role: "teacher", rate: 600, format: "выезд", duties: "" },
+  { id: 5, name: "Кубанычбекова Алия", subject: "Математика", avatar: "А", color: "#4AADAD", login: "aliya", password: "aliya2025", role: "teacher", rate: 600, format: "выезд", duties: "" },
+  { id: 6, name: "Байботоева Динай", subject: "Математика", avatar: "Д", color: "#C45C8A", login: "dinay", password: "dinay2025", role: "teacher", rate: 600, format: "выезд", duties: "" },
+  { id: 7, name: "Асанова Амина", subject: "Математика", avatar: "А", color: "#4AADAD", login: "amina", password: "amina2025", role: "teacher", rate: 600, format: "онлайн", duties: "" },
+  { id: 8, name: "Шарипова Нурайым", subject: "Математика", avatar: "Н", color: "#6B8DD6", login: "nurai", password: "nurai2025", role: "teacher", rate: 600, format: "выезд", duties: "" },
+  { id: 9, name: "Егимбаева Асыл", subject: "Русский язык, Математика, Чтение", avatar: "А", color: "#B5804A", login: "asyl", password: "asyl2025", role: "teacher", rate: 600, format: "выезд", duties: "" },
+  { id: 10, name: "Саламбаева Анеля", subject: "Русский язык, Математика, Чтение", avatar: "А", color: "#3A8CC7", login: "anelya", password: "anelya2025", role: "teacher", rate: 600, format: "выезд", duties: "" },
+  { id: 11, name: "Тюлегенова Мунара", subject: "Математика", avatar: "М", color: "#5B9E6E", login: "munara", password: "munara2025", role: "teacher", rate: 600, format: "выезд", duties: "" },
+  { id: 12, name: "Миродилжонова Мадина", subject: "Координатор", avatar: "М", color: "#8B6BB5", login: "madina", password: "madina2025", role: "coordinator", rate: 15000, format: "", duties: "" },
+  { id: 13, name: "Калыгулова Айкен", subject: "Математика", avatar: "А", color: "#D4845A", login: "aiken", password: "aiken2025", role: "teacher", rate: 600, format: "выезд", duties: "" },
 ];
 
 const INITIAL_STUDENTS = [
