@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 
 const C = {
   blue: "#6BB8E8", blueDark: "#3A8CC7", blueLight: "#EBF5FC", blueMid: "#B8DDF5",
@@ -10,6 +10,7 @@ const C = {
 
 const ADMIN       = { login: "aydanek",    password: "akbilim2025", name: "Айданек",     role: "admin" };
 const COORDINATOR = { login: "pomoshnica", password: "coord123",    name: "Координатор",   role: "coordinator" };
+const SMM_USER    = { login: "smm",        password: "smm2025",     name: "СММ-менеджер", role: "smm", avatar: "С", color: "#E91E8C" };
 
 const INITIAL_TEACHERS = [
   { id: 1, name: "Айгуль Бекова",      subject: "Математика",      avatar: "А", color: "#3A8CC7", login: "aigul",  password: "aigul123",  role: "teacher", rate: 600, format: "выезд",  duties: "Проводить уроки на выезде. Заполнять отчёты после каждого урока с фото." },
@@ -326,7 +327,7 @@ const PageTitle = ({ emoji, title, action }) => (
 
 function Layout({ user, tab, setTab, navItems, onLogout, children }) {
   const [sideOpen, setSideOpen] = useState(true);
-  const roleLabel = { admin: "👑 Руководитель", coordinator: "🗂️ Координатор", teacher: "👩‍🏫 Учитель", parent: "👨‍👩‍👧 Родитель" };
+  const roleLabel = { admin: "👑 Руководитель", coordinator: "🗂️ Координатор", teacher: "👩‍🏫 Учитель", parent: "👨‍👩‍👧 Родитель", smm: "📱 СММ-менеджер", psychologist: "🧠 Психолог", other: "👔 Сотрудник" };
   return (
     <div style={{ display: "flex", minHeight: "100vh", fontFamily: "'Nunito', 'Segoe UI', sans-serif", background: C.bg }}>
       <div style={{ width: sideOpen ? 220 : 64, background: C.white, flexShrink: 0, display: "flex", flexDirection: "column", transition: "width 0.2s", borderRight: `2px solid ${C.border}`, boxShadow: "2px 0 12px rgba(107,184,232,0.1)" }}>
@@ -873,11 +874,16 @@ function CoordReportTab({ leads, students, teachers, toast }) {
   );
 }
 
-function AdminApp({ user, onLogout, allReports, setAllReports, allTrials, setAllTrials, students, setStudents, teachers, setTeachers, parents, setParents, groups, setGroups, allReviews, books, setBooks, leads, setLeads, finances, setFinances, bookSales, setBookSales }) {
+function AdminApp({ user, onLogout, allReports, setAllReports, allTrials, setAllTrials, students, setStudents, teachers, setTeachers, parents, setParents, groups, setGroups, allReviews, books, setBooks, leads, setLeads, finances, setFinances, bookSales, setBookSales, allSmmReports, setAllSmmReports }) {
   const [tab, setTab] = useState("home");
+  const [reportSubTab, setReportSubTab] = useState("lessons");
   const [modal, setModal] = useState(null);
   const [notif, setNotif] = useState(null);
-  const [newT, setNewT] = useState({ name: "", subject: "", phone: "", rate: "600", login: "", password: "", format: "выезд", duties: "", staffRole: "teacher" });
+  const [newT, setNewT] = useState({ name: "", subject: "", phone: "", rate: "600", login: "", password: "", format: "выезд", duties: "", staffRole: "teacher", position: "" });
+  const STAFF_ROLES = [
+    { val: "teacher",  icon: "👩‍🏫", label: "Педагог", color: C.blueDark },
+    { val: "other",    icon: "➕",  label: "Другое",  color: C.muted    },
+  ];
   const [newP, setNewP] = useState({ name: "", phone: "", password: "", studentId: "" });
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [attendance, setAttendance] = useState({});
@@ -894,17 +900,22 @@ function AdminApp({ user, onLogout, allReports, setAllReports, allTrials, setAll
     if (!newT.name || !newT.login || !newT.password) return;
     const color = TEACHER_COLORS[teachers.length % TEACHER_COLORS.length];
     const isCoord = newT.staffRole === "coordinator";
+    const isTeacher = newT.staffRole === "teacher";
+    const roleObj = STAFF_ROLES.find(r => r.val === newT.staffRole);
     const teacher = {
-      id: Date.now(), name: newT.name, subject: isCoord ? "Координатор" : newT.subject,
-      avatar: newT.name[0].toUpperCase(), color, role: isCoord ? "coordinator" : "teacher",
+      id: Date.now(), name: newT.name,
+      subject: isCoord ? "Координатор" : isTeacher ? newT.subject : (newT.position || roleObj?.label || newT.staffRole),
+      avatar: newT.name[0].toUpperCase(), color,
+      role: isCoord ? "coordinator" : isTeacher ? "teacher" : newT.staffRole,
       login: newT.login.toLowerCase().trim(), password: newT.password, phone: newT.phone,
-      rate: Number(newT.rate) || 0, format: isCoord ? "" : newT.format, duties: newT.duties,
-      salaryType: isCoord ? "monthly" : "perLesson"
+      rate: Number(newT.rate) || 0, format: isCoord ? "" : isTeacher ? newT.format : "", duties: newT.duties,
+      salaryType: isCoord ? "monthly" : "perLesson", staffRole: newT.staffRole,
+      position: newT.position,
     };
     setTeachers(prev => [...prev, teacher]);
     sb.add("ak_teachers", teacher);
-    setNewT({ name: "", subject: "", phone: "", rate: "600", login: "", password: "", format: "выезд", duties: "", staffRole: "teacher" });
-    setModal(null); toast(`🎉 ${isCoord ? "Координатор" : "Педагог"} ${newT.name} добавлен${isCoord ? "а" : ""}!`);
+    setNewT({ name: "", subject: "", phone: "", rate: "600", login: "", password: "", format: "выезд", duties: "", staffRole: "teacher", position: "" });
+    setModal(null); toast(`🎉 ${roleObj?.label || "Сотрудник"} ${newT.name} добавлен!`);
   };
 
   const addParent = () => {
@@ -1058,16 +1069,44 @@ function AdminApp({ user, onLogout, allReports, setAllReports, allTrials, setAll
             })}
           </div>
 
+          {teachers.filter(t => !["teacher","coordinator"].includes(t.role)).length > 0 && (
+            <div style={{ marginTop: 24 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: C.muted, marginBottom: 10 }}>👔 Другие сотрудники</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 }}>
+                {teachers.filter(t => !["teacher","coordinator"].includes(t.role)).map(t => {
+                  const roleObj = STAFF_ROLES.find(r => r.val === (t.staffRole || t.role));
+                  const roleColor = roleObj?.color || C.muted;
+                  return (
+                    <Card key={t.id} style={{ borderTop: `4px solid ${roleColor}` }}>
+                      <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 10 }}>
+                        <Av l={t.avatar} color={roleColor} size={46} photoUrl={t.photoUrl} />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 800, fontSize: 15 }}>{t.name}</div>
+                          <Badge text={`${roleObj?.icon || ""} ${t.position || t.subject || roleObj?.label || t.role}`} color={roleColor} />
+                          {t.rate > 0 && <div style={{ fontSize: 12, color: C.warning, fontWeight: 700, marginTop: 4 }}>{t.rate.toLocaleString()} сом/мес</div>}
+                          {t.phone && <div style={{ fontSize: 12, color: C.muted }}>📞 {t.phone}</div>}
+                        </div>
+                        <button onClick={() => setConfirmDelete({ type: "teacher", id: t.id, name: t.name })} style={{ background: C.danger + "15", border: "none", borderRadius: 8, padding: "5px 8px", cursor: "pointer", fontSize: 14, color: C.danger }}>🗑️</button>
+                      </div>
+                      {t.duties && <div style={{ background: C.blueLight, borderRadius: 8, padding: "8px 10px", fontSize: 12 }}><span style={{ fontWeight: 700, color: roleColor }}>📋 </span>{t.duties}</div>}
+                      <div style={{ fontSize: 12, background: C.blueLight, borderRadius: 8, padding: "6px 10px", color: C.blueDark, fontWeight: 600, marginTop: 8 }}>🔑 {t.login}</div>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <Modal open={modal === "addTeacher"} onClose={() => setModal(null)} title="👥 Новый сотрудник">
             <div style={{ marginBottom: 16 }}>
               <Label>РОЛЬ СОТРУДНИКА <span style={{ color: C.danger }}>*</span></Label>
-              <div style={{ display: "flex", gap: 10 }}>
-                {[{ val: "teacher", icon: "👩‍🏫", label: "Педагог" }, { val: "coordinator", icon: "🗂️", label: "Координатор" }].map(opt => (
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {STAFF_ROLES.map(opt => (
                   <button key={opt.val} onClick={() => setNewT(p => ({...p, staffRole: opt.val}))} style={{
-                    flex: 1, padding: "12px", borderRadius: 12, cursor: "pointer", fontFamily: "inherit", fontWeight: 700, fontSize: 14,
-                    background: newT.staffRole === opt.val ? (opt.val === "teacher" ? C.blueDark : C.coord) : C.blueLight,
+                    padding: "9px 14px", borderRadius: 12, cursor: "pointer", fontFamily: "inherit", fontWeight: 700, fontSize: 13,
+                    background: newT.staffRole === opt.val ? opt.color : C.blueLight,
                     color: newT.staffRole === opt.val ? "#fff" : C.muted,
-                    border: `2px solid ${newT.staffRole === opt.val ? (opt.val === "teacher" ? C.blueDark : C.coord) : C.border}`,
+                    border: `2px solid ${newT.staffRole === opt.val ? opt.color : C.border}`,
                   }}>{opt.icon} {opt.label}</button>
                 ))}
               </div>
@@ -1081,17 +1120,20 @@ function AdminApp({ user, onLogout, allReports, setAllReports, allTrials, setAll
                 <FSelect label="ФОРМАТ РАБОТЫ" value={newT.format} onChange={v => setNewT(p => ({...p, format: v}))} options={FORMATS.map(f => ({ value: f, label: FORMAT_LABELS[f] }))} />
               </>
             )}
-            {newT.staffRole === "coordinator" && (
-              <FInput label="ЗАРПЛАТА КООРДИНАТОРА (сом/месяц)" value={newT.rate} onChange={v => setNewT(p => ({...p, rate: v}))} type="number" placeholder="15000" />
+            {newT.staffRole === "other" && (
+              <>
+                <FInput label="ДОЛЖНОСТЬ (своя)" value={newT.position} onChange={v => setNewT(p => ({...p, position: v}))} placeholder="Например: СММ, Психолог, Администратор..." required />
+                <FInput label="ЗАРПЛАТА (сом/месяц)" value={newT.rate} onChange={v => setNewT(p => ({...p, rate: v}))} type="number" />
+              </>
             )}
-            <FTextarea label="ОБЯЗАННОСТИ" value={newT.duties} onChange={v => setNewT(p => ({...p, duties: v}))} placeholder={newT.staffRole === "coordinator" ? "Обязанности координатора..." : "Обязанности педагога..."} rows={3} />
+            <FTextarea label="ОБЯЗАННОСТИ" value={newT.duties} onChange={v => setNewT(p => ({...p, duties: v}))} placeholder="Обязанности сотрудника..." rows={3} />
             <div style={{ background: C.blueLight, borderRadius: 12, padding: 14, marginBottom: 4 }}>
               <div style={{ fontSize: 12, fontWeight: 800, color: C.blueDark, marginBottom: 10 }}>🔐 Данные для входа</div>
               <FInput label="ЛОГИН" value={newT.login} onChange={v => setNewT(p => ({...p, login: v}))} required />
               <FInput label="ПАРОЛЬ" value={newT.password} onChange={v => setNewT(p => ({...p, password: v}))} required />
             </div>
             <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
-              <Btn full onClick={addTeacher} color={newT.staffRole === "coordinator" ? C.coord : C.blueDark} disabled={!newT.name || !newT.login || !newT.password}>Добавить</Btn>
+              <Btn full onClick={addTeacher} color={STAFF_ROLES.find(r => r.val === newT.staffRole)?.color || C.blueDark} disabled={!newT.name || !newT.login || !newT.password}>Добавить</Btn>
               <Btn outline color={C.muted} onClick={() => setModal(null)}>Отмена</Btn>
             </div>
           </Modal>
@@ -1246,59 +1288,113 @@ function AdminApp({ user, onLogout, allReports, setAllReports, allTrials, setAll
 
       {tab === "reports" && (
         <div>
-          <PageTitle emoji="📋" title="Отчёты педагогов" />
+          <PageTitle emoji="📋" title="Отчёты" />
           {(() => {
+            const subTab = reportSubTab;
+            const setSubTab = setReportSubTab;
+            const subTabs = [
+              { key: "lessons", icon: "📝", label: "Уроки" },
+              { key: "trials", icon: "🧪", label: "Пробные" },
+              { key: "coordinator", icon: "🗂️", label: "Координатор" },
+              { key: "smm", icon: "📱", label: "СММ" },
+            ];
+            const today = new Date().toLocaleDateString("ru-RU");
             const todayRu = new Date().toLocaleDateString("ru-RU", { weekday: "long" });
             const todayDays = DAYS.filter(d => d.toLowerCase().startsWith(todayRu.toLowerCase().slice(0, 3)));
-            const today = new Date().toLocaleDateString("ru-RU");
             const todayReports = allReports.filter(r => r.date === today);
             const reportedTeacherIds = new Set(todayReports.map(r => r.teacherId));
             const teachersWithLessonsToday = teachers.filter(t => {
               const hasStudents = students.some(s => s.teacherId === t.id && (s.days || []).some(d => todayDays.includes(d) || d.toLowerCase().startsWith(todayRu.toLowerCase().slice(0, 2))));
               return hasStudents && !reportedTeacherIds.has(t.id);
             });
-            return teachersWithLessonsToday.length > 0 ? (
-              <Card style={{ marginBottom: 18, borderLeft: `5px solid ${C.danger}` }}>
-                <div style={{ fontWeight: 800, fontSize: 14, color: C.danger, marginBottom: 12 }}>⚠️ Уроки без отчётов — {today}</div>
-                {teachersWithLessonsToday.map(t => {
-                  const missingStudents = students.filter(s => s.teacherId === t.id && (s.days || []).some(d => todayDays.includes(d) || d.toLowerCase().startsWith(todayRu.toLowerCase().slice(0, 2))));
-                  return (
-                    <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: `1px solid ${C.border}` }}>
-                      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                        <Av l={t.avatar} color={t.color} size={32} photoUrl={t.photoUrl} />
-                        <div>
-                          <div style={{ fontWeight: 700, fontSize: 13 }}>{t.name}</div>
-                          <div style={{ fontSize: 12, color: C.muted }}>{missingStudents.map(s => s.name).join(", ")}</div>
-                        </div>
-                      </div>
-                      <Badge text="Нет отчёта" color={C.danger} />
-                    </div>
-                  );
-                })}
-              </Card>
-            ) : (
-              <Card style={{ marginBottom: 18, borderLeft: `5px solid ${C.success}` }}>
-                <div style={{ fontWeight: 800, fontSize: 14, color: C.success, textAlign: "center", padding: 12 }}>✅ Все педагоги сдали отчёты за сегодня</div>
-              </Card>
+            return (
+              <div>
+                <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+                  {subTabs.map(st => (
+                    <button key={st.key} onClick={() => setSubTab(st.key)} style={{
+                      padding: "10px 18px", borderRadius: 12, fontSize: 13, fontWeight: 700,
+                      cursor: "pointer", fontFamily: "inherit", border: "none",
+                      background: subTab === st.key ? C.blue : C.blueLight,
+                      color: subTab === st.key ? "#fff" : C.muted,
+                      boxShadow: subTab === st.key ? `0 3px 10px ${C.blue}44` : "none",
+                    }}>{st.icon} {st.label}</button>
+                  ))}
+                </div>
+
+                {subTab === "lessons" && (
+                  <div>
+                    {teachersWithLessonsToday.length > 0 && (
+                      <Card style={{ marginBottom: 18, borderLeft: `5px solid ${C.danger}` }}>
+                        <div style={{ fontWeight: 800, fontSize: 14, color: C.danger, marginBottom: 12 }}>⚠️ Не написали отчёт — {today}</div>
+                        {teachersWithLessonsToday.map(t => (
+                          <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: `1px solid ${C.border}` }}>
+                            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                              <Av l={t.avatar} color={t.color} size={32} photoUrl={t.photoUrl} />
+                              <div style={{ fontWeight: 700, fontSize: 13 }}>{t.name}</div>
+                            </div>
+                            <Badge text="❌ Нет отчёта" color={C.danger} />
+                          </div>
+                        ))}
+                      </Card>
+                    )}
+                    {allReports.length === 0
+                      ? <Card><div style={{ color: C.muted, textAlign: "center", padding: 40 }}>Отчётов пока нет</div></Card>
+                      : allReports.map(r => <ExpandableReportCard key={r.id} r={r} teachers={teachers} />)}
+                  </div>
+                )}
+
+                {subTab === "trials" && (
+                  <div>
+                    {allTrials.length === 0
+                      ? <Card><div style={{ color: C.muted, textAlign: "center", padding: 40 }}>Пробных уроков пока нет</div></Card>
+                      : allTrials.map(t => <ExpandableTrialCard key={t.id} t={t} teachers={teachers} />)}
+                  </div>
+                )}
+
+                {subTab === "coordinator" && (
+                  <div>
+                    {(allSmmReports || []).filter(r => r.type === "coordinator").length === 0
+                      ? <Card><div style={{ color: C.muted, textAlign: "center", padding: 40 }}>Отчётов координатора пока нет</div></Card>
+                      : (allSmmReports || []).filter(r => r.type === "coordinator").map(r => (
+                        <Card key={r.id} style={{ marginBottom: 12, borderLeft: `4px solid ${C.coord}` }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                            <div style={{ fontWeight: 800 }}>🗂️ {r.authorName}</div>
+                            <div style={{ fontSize: 12, color: C.muted }}>{r.date}</div>
+                          </div>
+                          <div style={{ fontSize: 13 }}>🧪 Пробных назначено: <b>{r.trialsScheduled}</b></div>
+                          <div style={{ fontSize: 13 }}>👦 Учеников добавлено: <b>{r.studentsAdded}</b></div>
+                          <div style={{ fontSize: 13 }}>📞 Родителей обзвонила: <b>{r.parentsCalled}</b></div>
+                          {r.notes && <div style={{ marginTop: 8, background: C.blueLight, borderRadius: 8, padding: 10, fontSize: 13 }}>💬 {r.notes}</div>}
+                        </Card>
+                      ))}
+                  </div>
+                )}
+
+                {subTab === "smm" && (
+                  <div>
+                    {(allSmmReports || []).filter(r => r.type === "smm_report").length === 0
+                      ? <Card><div style={{ color: C.muted, textAlign: "center", padding: 40 }}>Отчётов СММ пока нет</div></Card>
+                      : (allSmmReports || []).filter(r => r.type === "smm_report").map(r => (
+                        <Card key={r.id} style={{ marginBottom: 12, borderLeft: `4px solid #E91E8C` }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+                            <div style={{ fontWeight: 800 }}>📱 {r.authorName}</div>
+                            <div style={{ fontSize: 12, color: C.muted }}>{r.date}</div>
+                          </div>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+                            <div style={{ background: C.blueLight, borderRadius: 8, padding: "8px 12px", fontSize: 13 }}>📸 Постов: <b>{r.postsCount}</b></div>
+                            <div style={{ background: C.blueLight, borderRadius: 8, padding: "8px 12px", fontSize: 13 }}>👥 Подписчики: <b>+{r.newFollowers}</b></div>
+                            <div style={{ background: C.blueLight, borderRadius: 8, padding: "8px 12px", fontSize: 13 }}>👁️ Охваты: <b>{r.reach}</b></div>
+                            <div style={{ background: C.blueLight, borderRadius: 8, padding: "8px 12px", fontSize: 13 }}>🎯 Лиды: <b>{r.leadsFromSocial}</b></div>
+                          </div>
+                          {r.bestPost && <div style={{ fontSize: 13, marginBottom: 6 }}>⭐ Лучший пост: <b>{r.bestPost}</b></div>}
+                          {r.notes && <div style={{ background: C.blueLight, borderRadius: 8, padding: 10, fontSize: 13 }}>💬 {r.notes}</div>}
+                        </Card>
+                      ))}
+                  </div>
+                )}
+              </div>
             );
           })()}
-          {allReports.length === 0 ? <Card><div style={{ color: C.muted, textAlign: "center", padding: 40 }}>Отчётов пока нет</div></Card>
-            : allReports.map(r => (
-              <Card key={r.id} style={{ marginBottom: 12 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                  <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                    <Av l={r.teacherAvatar} color={r.teacherColor} size={36} photoUrl={teachers.find(t=>t.id===r.teacherId)?.photoUrl} />
-                    <div>
-                      <div style={{ fontWeight: 800, fontSize: 14 }}>{r.teacherName}</div>
-                      <div style={{ fontSize: 12, color: C.muted }}>{r.date}</div>
-                    </div>
-                  </div>
-                  <Stars rating={r.rating} />
-                </div>
-                <div style={{ fontSize: 13 }}>👦 <b>{r.studentName}</b> · 📚 {r.topic}</div>
-                {r.paymentReceived && <div style={{ marginTop: 6 }}><Badge text={`💰 ${r.paymentAmount} сом`} color={C.success} /></div>}
-              </Card>
-            ))}
         </div>
       )}
 
@@ -1608,25 +1704,36 @@ function AdminApp({ user, onLogout, allReports, setAllReports, allTrials, setAll
       {tab === "schedule" && (
         <div>
           <PageTitle emoji="📅" title="Расписание" />
-          {DAYS.map(day => {
-            const items = students.filter(s => (s.days||[]).includes(day)).map(s => ({ ...s, teacher: teachers.find(t => t.id === s.teacherId) }));
-            return (
-              <Card key={day} style={{ marginBottom: 10 }}>
-                <div style={{ fontWeight: 800, fontSize: 14, color: items.length ? C.blueDark : C.muted, marginBottom: items.length ? 10 : 0 }}>{day}</div>
-                {items.length === 0 ? <div style={{ fontSize: 13, color: C.muted }}>Занятий нет</div>
-                  : items.map((s,i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: i < items.length-1 ? `1px solid ${C.border}` : "none" }}>
-                      <div style={{ background: FORMAT_COLORS[s.format] || C.blue, color: "#fff", fontWeight: 800, fontSize: 12, padding: "5px 10px", borderRadius: 8 }}>{s.time}</div>
-                      <Badge text={FORMAT_LABELS[s.format] || s.format} color={FORMAT_COLORS[s.format] || C.blue} />
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: 13 }}>{s.name}</div>
-                        <div style={{ fontSize: 11, color: C.muted }}>{s.teacher?.name} · 📍 {s.address}</div>
-                      </div>
-                    </div>
-                  ))}
-              </Card>
-            );
-          })}
+          {(() => {
+            const today = new Date().toLocaleDateString("ru-RU");
+            const todayRu = new Date().toLocaleDateString("ru-RU", { weekday: "long" });
+            const todayReports = allReports.filter(r => r.date === today);
+            const reportedStudentIds = new Set(todayReports.map(r => r.studentId));
+            return DAYS.map(day => {
+              const items = students.filter(s => (s.days||[]).includes(day)).map(s => ({ ...s, teacher: teachers.find(t => t.id === s.teacherId) }));
+              const isToday = day.toLowerCase().startsWith(todayRu.toLowerCase().slice(0, 3)) || todayRu.toLowerCase().startsWith(day.toLowerCase().slice(0, 3));
+              return (
+                <Card key={day} style={{ marginBottom: 10 }}>
+                  <div style={{ fontWeight: 800, fontSize: 14, color: items.length ? C.blueDark : C.muted, marginBottom: items.length ? 10 : 0 }}>{day}</div>
+                  {items.length === 0 ? <div style={{ fontSize: 13, color: C.muted }}>Занятий нет</div>
+                    : items.map((s,i) => {
+                      const missed = isToday && !reportedStudentIds.has(s.id);
+                      return (
+                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: i < items.length-1 ? `1px solid ${C.border}` : "none", background: missed ? C.danger + "08" : "transparent", borderRadius: 6 }}>
+                          <div style={{ background: missed ? C.danger : FORMAT_COLORS[s.format] || C.blue, color: "#fff", fontWeight: 800, fontSize: 12, padding: "5px 10px", borderRadius: 8 }}>{s.time}</div>
+                          <Badge text={FORMAT_LABELS[s.format] || s.format} color={missed ? C.danger : FORMAT_COLORS[s.format] || C.blue} />
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 700, fontSize: 13 }}>{s.name}</div>
+                            <div style={{ fontSize: 11, color: C.muted }}>{s.teacher?.name} · 📍 {s.address}</div>
+                          </div>
+                          {missed && <Badge text="❌ Нет отчёта" color={C.danger} />}
+                        </div>
+                      );
+                    })}
+                </Card>
+              );
+            });
+          })()}
         </div>
       )}
 
@@ -1687,9 +1794,12 @@ function AdminApp({ user, onLogout, allReports, setAllReports, allTrials, setAll
   );
 }
 
-function CoordinatorApp({ user, onLogout, allReports, allTrials, setAllTrials, students, setStudents, teachers, setTeachers, parents, setParents, groups, allReviews, books, leads, setLeads }) {
+function CoordinatorApp({ user, onLogout, allReports, allTrials, setAllTrials, students, setStudents, teachers, setTeachers, parents, setParents, groups, allReviews, books, leads, setLeads, allSmmReports, setAllSmmReports }) {
   const [tab, setTab] = useState("home");
   const [notif, setNotif] = useState(null);
+  const [coordReportSubTab, setCoordReportSubTab] = useState("lessons");
+  const [coordReport, setCoordReport] = useState({ trialsScheduled: "", studentsAdded: "", parentsCalled: "", leadsWithoutTeacher: "", districtShortage: "", notes: "" });
+  const [coordReportSent, setCoordReportSent] = useState(false);
   const toast = msg => { setNotif(msg); setTimeout(() => setNotif(null), 3000); };
 
   const nav = [
@@ -1700,8 +1810,7 @@ function CoordinatorApp({ user, onLogout, allReports, allTrials, setAllTrials, s
     { key: "groups",    icon: "🏫", label: "Группы"     },
     { key: "teachers",  icon: "👩‍🏫", label: "Педагоги"  },
     { key: "parents",   icon: "👨‍👩‍👧", label: "Родители"  },
-    { key: "reports",   icon: "📊", label: "Мой отчёт"  },
-    { key: "lessons",   icon: "📑", label: "Отчёты ур." },
+    { key: "reports",   icon: "📋", label: "Отчёты"     },
     { key: "schedule",  icon: "📅", label: "Расписание" },
     { key: "reviews",   icon: "⭐", label: "Отзывы"     },
     { key: "library",   icon: "📚", label: "Книги"      },
@@ -1868,16 +1977,67 @@ function CoordinatorApp({ user, onLogout, allReports, allTrials, setAllTrials, s
       )}
 
       {tab === "reports" && (
-        <CoordReportTab leads={leads} students={students} teachers={teachers} toast={toast} />
-      )}
-
-      {tab === "lessons" && (
         <div>
-          <PageTitle emoji="📑" title="Отчёты педагогов" />
-          {allReports.length === 0 ? <Card><div style={{ color: C.muted, textAlign: "center", padding: 40 }}>Отчётов пока нет</div></Card>
-            : allReports.map(r => (
-              <ExpandableReportCard key={r.id} r={r} teachers={teachers} />
+          <PageTitle emoji="📋" title="Отчёты" />
+          <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+            {[
+              { key: "lessons", icon: "📝", label: "Уроки" },
+              { key: "trials", icon: "🧪", label: "Пробные" },
+              { key: "myreport", icon: "🗂️", label: "Мой отчёт" },
+            ].map(st => (
+              <button key={st.key} onClick={() => setCoordReportSubTab(st.key)} style={{
+                padding: "10px 18px", borderRadius: 12, fontSize: 13, fontWeight: 700,
+                cursor: "pointer", fontFamily: "inherit", border: "none",
+                background: coordReportSubTab === st.key ? C.coord : C.blueLight,
+                color: coordReportSubTab === st.key ? "#fff" : C.muted,
+              }}>{st.icon} {st.label}</button>
             ))}
+          </div>
+
+          {coordReportSubTab === "lessons" && (
+            <div>
+              {allReports.length === 0
+                ? <Card><div style={{ color: C.muted, textAlign: "center", padding: 40 }}>Отчётов пока нет</div></Card>
+                : allReports.map(r => <ExpandableReportCard key={r.id} r={r} teachers={teachers} />)}
+            </div>
+          )}
+
+          {coordReportSubTab === "trials" && (
+            <div>
+              {allTrials.length === 0
+                ? <Card><div style={{ color: C.muted, textAlign: "center", padding: 40 }}>Пробных пока нет</div></Card>
+                : allTrials.map(t => <ExpandableTrialCard key={t.id} t={t} teachers={teachers} />)}
+            </div>
+          )}
+
+          {coordReportSubTab === "myreport" && (
+            coordReportSent ? (
+              <Card style={{ textAlign: "center", padding: 48 }}>
+                <div style={{ fontSize: 52, marginBottom: 12 }}>🎉</div>
+                <div style={{ fontWeight: 900, fontSize: 20, color: C.success }}>Отчёт отправлен!</div>
+                <div style={{ marginTop: 16 }}><Btn onClick={() => setCoordReportSent(false)} color={C.coord}>Новый отчёт</Btn></div>
+              </Card>
+            ) : (
+              <Card style={{ maxWidth: 540 }}>
+                <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16, color: C.coord }}>📊 Недельный отчёт</div>
+                <FInput label="🧪 ПРОБНЫХ НАЗНАЧЕНО" value={coordReport.trialsScheduled} onChange={v => setCoordReport(p => ({...p, trialsScheduled: v}))} type="number" placeholder={String(leads.filter(l => l.status === "trial").length)} />
+                <FInput label="👦 УЧЕНИКОВ ДОБАВЛЕНО" value={coordReport.studentsAdded} onChange={v => setCoordReport(p => ({...p, studentsAdded: v}))} type="number" placeholder="0" />
+                <FInput label="📞 РОДИТЕЛЕЙ ОБЗВОНИЛА" value={coordReport.parentsCalled} onChange={v => setCoordReport(p => ({...p, parentsCalled: v}))} type="number" placeholder="0" />
+                <FInput label="🚫 ЛИДОВ БЕЗ ПЕДАГОГА" value={coordReport.leadsWithoutTeacher} onChange={v => setCoordReport(p => ({...p, leadsWithoutTeacher: v}))} type="number" placeholder={String(leads.filter(l => l.status === "new").length)} />
+                <FSelect label="📍 РАЙОН — НЕ ХВАТАЕТ ПЕДАГОГА" value={coordReport.districtShortage} onChange={v => setCoordReport(p => ({...p, districtShortage: v}))} options={[...DISTRICTS, "Везде хватает"]} />
+                <FTextarea label="💬 ЗАМЕТКИ / ПРОБЛЕМЫ" value={coordReport.notes} onChange={v => setCoordReport(p => ({...p, notes: v}))} placeholder="Что важного за неделю?" rows={4} />
+                <Btn full onClick={async () => {
+                  const today = new Date().toLocaleDateString("ru-RU");
+                  const rec = { id: Date.now(), type: "coordinator", authorName: user.name, date: today, ...coordReport };
+                  setAllSmmReports(p => [rec, ...p]);
+                  sb.add("ak_smm_reports", rec);
+                  await sendTelegram(`📊 <b>Отчёт координатора — ${user.name}</b>\n\n🧪 Пробных: ${coordReport.trialsScheduled}\n👦 Учеников: ${coordReport.studentsAdded}\n📞 Обзвонила: ${coordReport.parentsCalled}\n💬 ${coordReport.notes || "—"}`);
+                  setCoordReportSent(true);
+                  toast("📊 Отчёт отправлен Айданек!");
+                }} color={C.coord}>📤 Отправить отчёт Айданек</Btn>
+              </Card>
+            )
+          )}
         </div>
       )}
 
@@ -1942,10 +2102,11 @@ function CoordinatorApp({ user, onLogout, allReports, allTrials, setAllTrials, s
   );
 }
 
-function TeacherApp({ user, onLogout, onReport, onTrial, students, allReviews, allReports, allTrials }) {
+function TeacherApp({ user, onLogout, onReport, onTrial, students, allReviews, allReports, allTrials, parents }) {
   const [tab, setTab] = useState("home");
   const [myReports, setMyReports] = useState([]);
   const [notif, setNotif] = useState(null);
+  const [teacherReportSubTab, setTeacherReportSubTab] = useState("lesson");
   const toast = msg => { setNotif(msg); setTimeout(() => setNotif(null), 3000); };
   const myStudents = students.filter(s => s.teacherId === user.id);
   const [rf, setRf] = useState({ studentId: "", topic: "", topicCustom: "", notes: "", homework: "", rating: 5, paymentReceived: false, paymentAmount: 1400, files: [] });
@@ -1987,15 +2148,13 @@ function TeacherApp({ user, onLogout, onReport, onTrial, students, allReviews, a
   const [attendance, setAttendance] = useState({});
 
   const nav = [
-    { key: "home",      icon: "🏠", label: "Главная"    },
-    { key: "report",    icon: "📝", label: "Отчёт"      },
-    { key: "trial",     icon: "🧪", label: "Пробный"    },
-    { key: "attendance", icon: "✅", label: "Посещаемость" },
-    { key: "students",  icon: "👦", label: "Ученики"    },
-    { key: "schedule",  icon: "📅", label: "Расписание" },
-    { key: "history",   icon: "🕐", label: "История"    },
-    { key: "library",   icon: "📚", label: "Книги"      },
-    { key: "myreviews", icon: "⭐", label: "Отзывы"     },
+    { key: "home",       icon: "🏠", label: "Главная"      },
+    { key: "myreports",  icon: "📋", label: "Отчёты"       },
+    { key: "attendance", icon: "✅", label: "Посещаемость"  },
+    { key: "students",   icon: "👦", label: "Ученики"       },
+    { key: "schedule",   icon: "📅", label: "Расписание"    },
+    { key: "library",    icon: "📚", label: "Книги"         },
+    { key: "myreviews",  icon: "⭐", label: "Отзывы"        },
   ];
 
   return (
@@ -2186,6 +2345,65 @@ function TeacherApp({ user, onLogout, onReport, onTrial, students, allReviews, a
           <div style={{ marginTop: 8 }}><Btn full outline color={C.muted} onClick={() => setTab("home")}>Отмена</Btn></div>
         </Card>
       )}
+      {tab === "myreports" && (
+        <div>
+          <PageTitle emoji="📋" title="Отчёты" />
+          {(() => {
+            const subTab = teacherReportSubTab;
+            const setSubTab = setTeacherReportSubTab;
+            const teacherReports = (allReports || []).filter(r => r.teacherId === user.id);
+            const teacherTrials = (allTrials || []).filter(t => t.teacherId === user.id);
+            return (
+              <div>
+                <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+                  {[{ key: "lesson", icon: "📝", label: "За урок" }, { key: "trial", icon: "🧪", label: "Пробный" }].map(st => (
+                    <button key={st.key} onClick={() => setSubTab(st.key)} style={{
+                      padding: "10px 20px", borderRadius: 12, fontSize: 14, fontWeight: 700,
+                      cursor: "pointer", fontFamily: "inherit", border: "none",
+                      background: subTab === st.key ? user.color : C.blueLight,
+                      color: subTab === st.key ? "#fff" : C.muted,
+                      boxShadow: subTab === st.key ? `0 3px 10px ${user.color}44` : "none",
+                    }}>{st.icon} {st.label}</button>
+                  ))}
+                </div>
+
+                {subTab === "lesson" && (
+                  <div>
+                    <div onClick={() => setTab("report")} style={{ background: user.color, borderRadius: 14, padding: 16, cursor: "pointer", marginBottom: 16, display: "flex", alignItems: "center", gap: 12 }}>
+                      <span style={{ fontSize: 24 }}>📝</span>
+                      <div>
+                        <div style={{ color: "#fff", fontWeight: 900, fontSize: 15 }}>Написать отчёт об уроке</div>
+                        <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }}>С обязательным фото</div>
+                      </div>
+                      <div style={{ marginLeft: "auto", color: "#fff", fontSize: 18 }}>→</div>
+                    </div>
+                    {teacherReports.length === 0
+                      ? <Card><div style={{ color: C.muted, textAlign: "center", padding: 32 }}>Отчётов пока нет</div></Card>
+                      : teacherReports.map(r => <ExpandableReportCard key={r.id} r={r} teachers={[user]} />)}
+                  </div>
+                )}
+
+                {subTab === "trial" && (
+                  <div>
+                    <div onClick={() => setTab("trial")} style={{ background: C.blue, borderRadius: 14, padding: 16, cursor: "pointer", marginBottom: 16, display: "flex", alignItems: "center", gap: 12 }}>
+                      <span style={{ fontSize: 24 }}>🧪</span>
+                      <div>
+                        <div style={{ color: "#fff", fontWeight: 900, fontSize: 15 }}>Написать отчёт о пробном</div>
+                        <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }}>Анкета + фото</div>
+                      </div>
+                      <div style={{ marginLeft: "auto", color: "#fff", fontSize: 18 }}>→</div>
+                    </div>
+                    {teacherTrials.length === 0
+                      ? <Card><div style={{ color: C.muted, textAlign: "center", padding: 32 }}>Пробных уроков пока нет</div></Card>
+                      : teacherTrials.map(t => <ExpandableTrialCard key={t.id} t={t} teachers={[user]} />)}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
       {tab === "attendance" && (
         <div>
           <PageTitle emoji="✅" title="Посещаемость" />
@@ -2222,43 +2440,69 @@ function TeacherApp({ user, onLogout, onReport, onTrial, students, allReviews, a
       {tab === "students" && (
         <div>
           <PageTitle emoji="👦" title="Мои ученики" />
-          {myStudents.map(s => (
-            <Card key={s.id} style={{ marginBottom: 12 }}>
-              <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 8 }}>
-                <Av l={s.name[0]} color={user.color} size={40} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 800, fontSize: 15 }}>{s.name}</div>
-                  <div style={{ fontSize: 12, color: C.muted }}>{s.grade}</div>
+          {myStudents.map(s => {
+            const parent = (parents || []).find(p => p.studentId === s.id);
+            return (
+              <Card key={s.id} style={{ marginBottom: 12 }}>
+                <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 8 }}>
+                  <Av l={s.name[0]} color={user.color} size={40} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 800, fontSize: 15 }}>{s.name}</div>
+                    <div style={{ fontSize: 12, color: C.muted }}>{s.grade}</div>
+                  </div>
+                  <Badge text={FORMAT_LABELS[s.format] || s.format} color={FORMAT_COLORS[s.format] || C.blue} />
                 </div>
-                <Badge text={FORMAT_LABELS[s.format] || s.format} color={FORMAT_COLORS[s.format] || C.blue} />
-              </div>
-              <div style={{ fontSize: 12, color: C.muted }}>📍 {s.address} · {(s.days||[]).join(", ")} {s.time}</div>
-            </Card>
-          ))}
+                <div style={{ fontSize: 12, color: C.muted, marginBottom: 6 }}>📍 {s.address} · {(s.days||[]).join(", ")} {s.time}</div>
+                {(s.parentPhone || parent) && (
+                  <div style={{ background: C.blueLight, borderRadius: 10, padding: "8px 12px", display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 16 }}>👨‍👩‍👧</span>
+                    <div>
+                      {parent && <div style={{ fontWeight: 700, fontSize: 13 }}>{parent.name}</div>}
+                      <a href={`tel:${s.parentPhone || parent?.phone}`} style={{ fontSize: 13, color: C.blueDark, fontWeight: 700, textDecoration: "none" }}>
+                        📞 {s.parentPhone || parent?.phone}
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </Card>
+            );
+          })}
         </div>
       )}
 
       {tab === "schedule" && (
         <div>
           <PageTitle emoji="📅" title="Моё расписание" />
-          {DAYS.map(day => {
-            const items = myStudents.filter(s => (s.days||[]).includes(day));
-            return (
-              <Card key={day} style={{ marginBottom: 10 }}>
-                <div style={{ fontWeight: 800, fontSize: 14, color: items.length ? user.color : C.muted, marginBottom: items.length ? 10 : 0 }}>{day}</div>
-                {items.length === 0 ? <div style={{ fontSize: 13, color: C.muted }}>Свободно</div>
-                  : items.map(s => (
-                    <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <div style={{ background: user.color, color: "#fff", fontWeight: 800, padding: "5px 10px", borderRadius: 8, fontSize: 12 }}>{s.time}</div>
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: 13 }}>{s.name}</div>
-                        <div style={{ fontSize: 11, color: C.muted }}>📍 {s.address}</div>
-                      </div>
-                    </div>
-                  ))}
-              </Card>
-            );
-          })}
+          {(() => {
+            const today = new Date().toLocaleDateString("ru-RU");
+            const todayRu = new Date().toLocaleDateString("ru-RU", { weekday: "long" });
+            const todayReports = (allReports || []).filter(r => r.teacherId === user.id && r.date === today);
+            const reportedStudentIds = new Set(todayReports.map(r => r.studentId));
+            return DAYS.map(day => {
+              const items = myStudents.filter(s => (s.days||[]).includes(day));
+              const isToday = day.toLowerCase().startsWith(todayRu.toLowerCase().slice(0, 3)) || todayRu.toLowerCase().startsWith(day.toLowerCase().slice(0, 3));
+              return (
+                <Card key={day} style={{ marginBottom: 10 }}>
+                  <div style={{ fontWeight: 800, fontSize: 14, color: items.length ? user.color : C.muted, marginBottom: items.length ? 10 : 0 }}>{day}</div>
+                  {items.length === 0 ? <div style={{ fontSize: 13, color: C.muted }}>Свободно</div>
+                    : items.map(s => {
+                      const missed = isToday && !reportedStudentIds.has(s.id);
+                      return (
+                        <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0", borderBottom: `1px solid ${C.border}`, background: missed ? C.danger + "08" : "transparent", borderRadius: 8, paddingLeft: missed ? 8 : 0 }}>
+                          <div style={{ background: missed ? C.danger : user.color, color: "#fff", fontWeight: 800, padding: "5px 10px", borderRadius: 8, fontSize: 12 }}>{s.time}</div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 700, fontSize: 13 }}>{s.name}</div>
+                            <div style={{ fontSize: 11, color: C.muted }}>📍 {s.address}</div>
+                          </div>
+                          {missed && <Badge text="❌ Нет отчёта" color={C.danger} />}
+                          {isToday && !missed && reportedStudentIds.has(s.id) && <Badge text="✅ Отчёт сдан" color={C.success} />}
+                        </div>
+                      );
+                    })}
+                </Card>
+              );
+            });
+          })()}
         </div>
       )}
 
@@ -2336,6 +2580,208 @@ function TeacherApp({ user, onLogout, onReport, onTrial, students, allReviews, a
                 {rv.text && <div style={{ background: C.blueLight, borderRadius: 10, padding: 12, fontSize: 14 }}>💬 {rv.text}</div>}
               </Card>
             ))}
+        </div>
+      )}
+    </Layout>
+  );
+}
+
+function SmmApp({ user, onLogout, allSmmReports, setAllSmmReports }) {
+  const [tab, setTab] = useState("home");
+  const [notif, setNotif] = useState(null);
+  const toast = msg => { setNotif(msg); setTimeout(() => setNotif(null), 3000); };
+  const SMM_COLOR = "#E91E8C";
+
+  const myReports = (allSmmReports || []).filter(r => r.authorId === user.id);
+  const myNotes = (allSmmReports || []).filter(r => r.type === "smm_note" && r.authorId === user.id);
+  const myPlan = (allSmmReports || []).filter(r => r.type === "smm_task" && r.authorId === user.id);
+
+  const [newNote, setNewNote] = useState("");
+  const [noteFiles, setNoteFiles] = useState([]);
+  const [newTask, setNewTask] = useState({ platform: "Instagram", taskType: "Пост", day: "Понедельник", description: "" });
+  const [weekReport, setWeekReport] = useState({ postsCount: "", newFollowers: "", reach: "", leadsFromSocial: "", bestPost: "", notes: "", nextPlan: "" });
+  const [reportSent, setReportSent] = useState(false);
+
+  const PLATFORMS = ["Instagram", "Telegram", "TikTok", "YouTube"];
+  const TASK_TYPES = ["Пост", "Сторис", "Рилс", "Опрос", "Отзыв", "Реклама"];
+
+  const addNote = async () => {
+    if (!newNote.trim()) return;
+    const today = new Date().toLocaleDateString("ru-RU");
+    const rec = { id: Date.now(), type: "smm_note", authorId: user.id, authorName: user.name, date: today, text: newNote, files: noteFiles };
+    setAllSmmReports(p => [rec, ...p]);
+    sb.add("ak_smm_reports", rec);
+    const filesInfo = noteFiles.length > 0 ? `\n📎 Файлов: ${noteFiles.length}` : "";
+    await sendTelegram(`📱 <b>СММ — новая заметка!</b>\n👤 ${user.name}\n📝 ${newNote}${filesInfo}\n📅 ${today}`);
+    setNewNote("");
+    setNoteFiles([]);
+    toast("💡 Заметка добавлена!");
+  };
+
+  const addTask = () => {
+    const today = new Date().toLocaleDateString("ru-RU");
+    const rec = { id: Date.now(), type: "smm_task", authorId: user.id, authorName: user.name, date: today, platform: newTask.platform, taskType: newTask.taskType, day: newTask.day, description: newTask.description, done: false };
+    setAllSmmReports(p => [rec, ...p]);
+    sb.add("ak_smm_reports", rec);
+    setNewTask({ platform: "Instagram", taskType: "Пост", day: "Понедельник", description: "" });
+    toast("✅ Задача добавлена в план!");
+  };
+
+  const toggleTask = async (id, done) => {
+    setAllSmmReports(p => p.map(r => r.id === id ? { ...r, done: !done } : r));
+    sb.patch("ak_smm_reports", id, { done: !done });
+    if (!done) toast("✅ Выполнено!");
+  };
+
+  const submitWeekReport = async () => {
+    const today = new Date().toLocaleDateString("ru-RU");
+    const rec = { id: Date.now(), type: "smm_report", authorId: user.id, authorName: user.name, date: today, ...weekReport, postsCount: Number(weekReport.postsCount), newFollowers: Number(weekReport.newFollowers), reach: Number(weekReport.reach), leadsFromSocial: Number(weekReport.leadsFromSocial) };
+    setAllSmmReports(p => [rec, ...p]);
+    sb.add("ak_smm_reports", rec);
+    const text = `📱 <b>Недельный отчёт СММ — ${user.name}</b>\n\n📸 Постов: ${rec.postsCount}\n👥 Новые подписчики: +${rec.newFollowers}\n👁️ Охваты: ${rec.reach}\n🎯 Лиды из соцсетей: ${rec.leadsFromSocial}\n⭐ Лучший пост: ${rec.bestPost || "—"}\n\n💬 ${rec.notes || "—"}\n\n📅 План на след. неделю: ${rec.nextPlan || "—"}`;
+    await sendTelegram(text);
+    setReportSent(true);
+    toast("📤 Отчёт отправлен!");
+  };
+
+  const nav = [
+    { key: "home",    icon: "🏠", label: "Главная"     },
+    { key: "plan",    icon: "📅", label: "Контент-план" },
+    { key: "notes",   icon: "💡", label: "Идеи/Заметки" },
+    { key: "report",  icon: "📊", label: "Мой отчёт"   },
+  ];
+
+  return (
+    <Layout user={{ ...user, color: SMM_COLOR }} tab={tab} setTab={setTab} navItems={nav} onLogout={onLogout}>
+      {notif && <div style={{ position: "fixed", top: 18, right: 18, background: SMM_COLOR, color: "#fff", padding: "12px 22px", borderRadius: 12, fontWeight: 700, zIndex: 999 }}>{notif}</div>}
+
+      {tab === "home" && (
+        <div>
+          <div style={{ background: `linear-gradient(135deg, ${SMM_COLOR} 0%, #9C27B0 100%)`, borderRadius: 20, padding: "24px", marginBottom: 22, display: "flex", alignItems: "center", gap: 16 }}>
+            <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: "50%", padding: 12, fontSize: 28 }}>📱</div>
+            <div>
+              <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 13 }}>СММ-менеджер</div>
+              <div style={{ color: "#fff", fontWeight: 900, fontSize: 22 }}>Привет, {user.name}! 📱</div>
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+            <div onClick={() => setTab("plan")} style={{ background: SMM_COLOR, borderRadius: 16, padding: 18, cursor: "pointer" }}>
+              <div style={{ fontSize: 28, marginBottom: 6 }}>📅</div>
+              <div style={{ color: "#fff", fontWeight: 900, fontSize: 15 }}>Контент-план</div>
+              <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }}>{myPlan.filter(t => !t.done).length} задач</div>
+            </div>
+            <div onClick={() => setTab("notes")} style={{ background: "#9C27B0", borderRadius: 16, padding: 18, cursor: "pointer" }}>
+              <div style={{ fontSize: 28, marginBottom: 6 }}>💡</div>
+              <div style={{ color: "#fff", fontWeight: 900, fontSize: 15 }}>Идеи</div>
+              <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }}>{myNotes.length} заметок</div>
+            </div>
+          </div>
+          <Card>
+            <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 10 }}>📊 Последние отчёты</div>
+            {myReports.filter(r => r.type === "smm_report").slice(0, 3).map(r => (
+              <div key={r.id} style={{ padding: "8px 0", borderBottom: `1px solid ${C.border}` }}>
+                <div style={{ fontWeight: 700, fontSize: 13 }}>{r.date}</div>
+                <div style={{ fontSize: 12, color: C.muted }}>📸 {r.postsCount} постов · 👥 +{r.newFollowers} подписчиков · 🎯 {r.leadsFromSocial} лидов</div>
+              </div>
+            ))}
+            {myReports.filter(r => r.type === "smm_report").length === 0 && <div style={{ color: C.muted, fontSize: 13 }}>Отчётов пока нет</div>}
+          </Card>
+        </div>
+      )}
+
+      {tab === "plan" && (
+        <div>
+          <PageTitle emoji="📅" title="Контент-план" />
+          <Card style={{ marginBottom: 16 }}>
+            <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12, color: SMM_COLOR }}>➕ Добавить задачу</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+              <FSelect label="ПЛАТФОРМА" value={newTask.platform} onChange={v => setNewTask(p => ({...p, platform: v}))} options={PLATFORMS} />
+              <FSelect label="ТИП КОНТЕНТА" value={newTask.taskType} onChange={v => setNewTask(p => ({...p, taskType: v}))} options={TASK_TYPES} />
+            </div>
+            <FSelect label="ДЕНЬ" value={newTask.day} onChange={v => setNewTask(p => ({...p, day: v}))} options={DAYS} />
+            <FInput label="ОПИСАНИЕ" value={newTask.description} onChange={v => setNewTask(p => ({...p, description: v}))} placeholder="Что публикуем?" />
+            <Btn full color={SMM_COLOR} onClick={addTask} disabled={!newTask.description}>+ Добавить в план</Btn>
+          </Card>
+          {DAYS.map(day => {
+            const dayTasks = myPlan.filter(t => t.day === day);
+            if (dayTasks.length === 0) return null;
+            return (
+              <Card key={day} style={{ marginBottom: 12 }}>
+                <div style={{ fontWeight: 800, fontSize: 14, color: SMM_COLOR, marginBottom: 10 }}>{day}</div>
+                {dayTasks.map(t => (
+                  <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: `1px solid ${C.border}`, opacity: t.done ? 0.5 : 1 }}>
+                    <button onClick={() => toggleTask(t.id, t.done)} style={{ width: 24, height: 24, borderRadius: 6, border: `2px solid ${t.done ? C.success : C.border}`, background: t.done ? C.success : "#fff", cursor: "pointer", fontSize: 14, color: "#fff", flexShrink: 0 }}>{t.done ? "✓" : ""}</button>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, textDecoration: t.done ? "line-through" : "none" }}>{t.platform} — {t.taskType}</div>
+                      <div style={{ fontSize: 12, color: C.muted }}>{t.description}</div>
+                    </div>
+                    {t.done ? <Badge text="✅ Готово" color={C.success} /> : <Badge text="🔄 В работе" color={C.warning} />}
+                  </div>
+                ))}
+              </Card>
+            );
+          })}
+          {myPlan.length === 0 && <Card><div style={{ color: C.muted, textAlign: "center", padding: 32 }}>Задач пока нет — добавь первую!</div></Card>}
+        </div>
+      )}
+
+      {tab === "notes" && (
+        <div>
+          <PageTitle emoji="💡" title="Идеи и заметки" />
+          <Card style={{ marginBottom: 16 }}>
+            <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 10, color: "#9C27B0" }}>💡 Новая идея</div>
+            <textarea value={newNote} onChange={e => setNewNote(e.target.value)} rows={3} placeholder="Идея для контента, улучшение, мысль..."
+              style={{ width: "100%", padding: "10px 12px", border: `1.5px solid ${C.border}`, borderRadius: 10, fontSize: 14, fontFamily: "inherit", resize: "vertical", boxSizing: "border-box", background: C.blueLight, marginBottom: 10 }} />
+            <FileUpload label="📎 Прикрепи фото/видео/файл (необязательно)" files={noteFiles} onChange={setNoteFiles} />
+            <div style={{ marginTop: 10 }}><Btn full color="#9C27B0" onClick={addNote} disabled={!newNote.trim()}>💾 Сохранить идею</Btn></div>
+            <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>📲 Айданек получит уведомление в Telegram</div>
+          </Card>
+          {myNotes.length === 0
+            ? <Card><div style={{ color: C.muted, textAlign: "center", padding: 32 }}>Заметок пока нет</div></Card>
+            : myNotes.map(n => (
+              <Card key={n.id} style={{ marginBottom: 10, borderLeft: `4px solid #9C27B0` }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13 }}>💡 Идея</div>
+                  <div style={{ fontSize: 11, color: C.muted }}>{n.date}</div>
+                </div>
+                <div style={{ fontSize: 14, marginBottom: n.files?.length ? 8 : 0 }}>{n.text}</div>
+                {n.files && n.files.length > 0 && (
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+                    {n.files.map((f, i) => f.isVideo
+                      ? <div key={i} style={{ background: "#9C27B020", borderRadius: 8, padding: "6px 12px", fontSize: 13, color: "#9C27B0", fontWeight: 600 }}>🎥 {f.name}</div>
+                      : <img key={i} src={f.url} alt="" style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 8, border: `2px solid ${C.border}` }} />
+                    )}
+                  </div>
+                )}
+              </Card>
+            ))}
+        </div>
+      )}
+
+      {tab === "report" && (
+        <div>
+          <PageTitle emoji="📊" title="Недельный отчёт" />
+          {reportSent ? (
+            <Card style={{ textAlign: "center", padding: 48 }}>
+              <div style={{ fontSize: 52, marginBottom: 12 }}>🎉</div>
+              <div style={{ fontWeight: 900, fontSize: 20, color: C.success }}>Отчёт отправлен Айданек!</div>
+              <div style={{ marginTop: 16 }}><Btn onClick={() => { setReportSent(false); setWeekReport({ postsCount: "", newFollowers: "", reach: "", leadsFromSocial: "", bestPost: "", notes: "", nextPlan: "" }); }} color={SMM_COLOR}>Новый отчёт</Btn></div>
+            </Card>
+          ) : (
+            <Card style={{ maxWidth: 540 }}>
+              <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16, color: SMM_COLOR }}>📊 Итоги недели</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <FInput label="📸 ПОСТОВ ОПУБЛИКОВАНО" value={weekReport.postsCount} onChange={v => setWeekReport(p => ({...p, postsCount: v}))} type="number" placeholder="0" />
+                <FInput label="👥 НОВЫХ ПОДПИСЧИКОВ" value={weekReport.newFollowers} onChange={v => setWeekReport(p => ({...p, newFollowers: v}))} type="number" placeholder="0" />
+                <FInput label="👁️ ОХВАТЫ" value={weekReport.reach} onChange={v => setWeekReport(p => ({...p, reach: v}))} type="number" placeholder="0" />
+                <FInput label="🎯 ЛИДЫ ИЗ СОЦСЕТЕЙ" value={weekReport.leadsFromSocial} onChange={v => setWeekReport(p => ({...p, leadsFromSocial: v}))} type="number" placeholder="0" />
+              </div>
+              <FInput label="⭐ ЛУЧШИЙ ПОСТ НЕДЕЛИ" value={weekReport.bestPost} onChange={v => setWeekReport(p => ({...p, bestPost: v}))} placeholder="Опишите что сработало лучше всего" />
+              <FTextarea label="💬 ЧТО СРАБОТАЛО / ЧТО НЕТ" value={weekReport.notes} onChange={v => setWeekReport(p => ({...p, notes: v}))} placeholder="Что получилось хорошо? Что можно улучшить?" rows={3} />
+              <FTextarea label="📅 ПЛАН НА СЛЕДУЮЩУЮ НЕДЕЛЮ" value={weekReport.nextPlan} onChange={v => setWeekReport(p => ({...p, nextPlan: v}))} placeholder="Что планируешь на следующую неделю?" rows={3} />
+              <Btn full color={SMM_COLOR} onClick={submitWeekReport}>📤 Отправить отчёт Айданек</Btn>
+            </Card>
+          )}
         </div>
       )}
     </Layout>
@@ -2477,6 +2923,7 @@ export default function App() {
   const [allReports, setAllReports] = useState([]);
   const [allTrials,  setAllTrials]  = useState([]);
   const [allReviews, setAllReviews] = useState([]);
+  const [allSmmReports, setAllSmmReports] = useState([]);
   const [students,   setStudents]   = useState(INITIAL_STUDENTS);
   const [teachers,   setTeachers]   = useState(INITIAL_TEACHERS);
   const [parents,    setParents]    = useState(INITIAL_PARENTS);
@@ -2486,7 +2933,7 @@ export default function App() {
   const [finances,   setFinances]   = useState([]);
   const [bookSales,  setBookSales]  = useState([]);
 
-  const allUsers = [ADMIN, COORDINATOR, ...teachers, ...parents];
+  const allUsers = [ADMIN, COORDINATOR, SMM_USER, ...teachers, ...parents];
 
   useEffect(() => {
     (async () => {
@@ -2536,7 +2983,8 @@ export default function App() {
       allReviews={allReviews} books={books} setBooks={setBooks}
       leads={leads} setLeads={setLeads}
       finances={finances} setFinances={setFinances}
-      bookSales={bookSales} setBookSales={setBookSales} />
+      bookSales={bookSales} setBookSales={setBookSales}
+      allSmmReports={allSmmReports} setAllSmmReports={setAllSmmReports} />
   );
 
   if (user.role === "coordinator") return (
@@ -2545,7 +2993,13 @@ export default function App() {
       students={students} setStudents={setStudents}
       teachers={teachers} setTeachers={setTeachers} parents={parents} setParents={setParents}
       groups={groups} allReviews={allReviews} books={books}
-      leads={leads} setLeads={setLeads} />
+      leads={leads} setLeads={setLeads}
+      allSmmReports={allSmmReports} setAllSmmReports={setAllSmmReports} />
+  );
+
+  if (user.role === "smm") return (
+    <SmmApp user={user} onLogout={() => setUser(null)}
+      allSmmReports={allSmmReports} setAllSmmReports={setAllSmmReports} />
   );
 
   if (user.role === "parent") return (
@@ -2560,6 +3014,6 @@ export default function App() {
     <TeacherApp user={freshUser} onLogout={() => setUser(null)}
       onReport={r => setAllReports(p => [r, ...p])}
       onTrial={t  => { setAllTrials(p => [t,...p]); sb.add("ak_trials", t); }}
-      students={students} allReviews={allReviews} allReports={allReports} allTrials={allTrials} />
+      students={students} allReviews={allReviews} allReports={allReports} allTrials={allTrials} parents={parents} />
   );
 }
