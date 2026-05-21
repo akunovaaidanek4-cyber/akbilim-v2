@@ -937,7 +937,6 @@ function AdminApp({ user, onLogout, allReports, setAllReports, allTrials, setAll
     { key: "groups",   icon: "🏫", label: "Группы"     },
     { key: "parents",  icon: "👨‍👩‍👧", label: "Родители"  },
     { key: "leads",    icon: "🎯", label: "Лиды"       },
-    { key: "trials",   icon: "🧪", label: "Пробные"    },
     { key: "reports",  icon: "📋", label: "Отчёты"     },
     { key: "finance",  icon: "💰", label: "Финансы"    },
     { key: "schedule", icon: "📅", label: "Расписание" },
@@ -1797,6 +1796,8 @@ function AdminApp({ user, onLogout, allReports, setAllReports, allTrials, setAll
 function CoordinatorApp({ user, onLogout, allReports, allTrials, setAllTrials, students, setStudents, teachers, setTeachers, parents, setParents, groups, allReviews, books, leads, setLeads, allSmmReports, setAllSmmReports }) {
   const [tab, setTab] = useState("home");
   const [notif, setNotif] = useState(null);
+  const [modal, setModal] = useState(null);
+  const [coordNewStaff, setCoordNewStaff] = useState({ name: "", subject: "", phone: "", rate: "600", login: "", password: "", format: "выезд", duties: "", staffRole: "teacher", position: "" });
   const [coordReportSubTab, setCoordReportSubTab] = useState("lessons");
   const [coordReport, setCoordReport] = useState({ trialsScheduled: "", studentsAdded: "", parentsCalled: "", leadsWithoutTeacher: "", districtShortage: "", notes: "" });
   const [coordReportSent, setCoordReportSent] = useState(false);
@@ -1805,10 +1806,9 @@ function CoordinatorApp({ user, onLogout, allReports, allTrials, setAllTrials, s
   const nav = [
     { key: "home",      icon: "🏠", label: "Главная"    },
     { key: "leads",     icon: "🎯", label: "Лиды"       },
-    { key: "trials",    icon: "🧪", label: "Пробные"    },
     { key: "students",  icon: "👦", label: "Ученики"    },
     { key: "groups",    icon: "🏫", label: "Группы"     },
-    { key: "teachers",  icon: "👩‍🏫", label: "Педагоги"  },
+    { key: "teachers",  icon: "👩‍🏫", label: "Сотрудники" },
     { key: "parents",   icon: "👨‍👩‍👧", label: "Родители"  },
     { key: "reports",   icon: "📋", label: "Отчёты"     },
     { key: "schedule",  icon: "📅", label: "Расписание" },
@@ -1898,7 +1898,7 @@ function CoordinatorApp({ user, onLogout, allReports, allTrials, setAllTrials, s
       )}
 
       {tab === "students" && (
-        <StudentsTab students={students} teachers={teachers} groups={groups} setStudents={setStudents} canDelete={false} canAdd={true} toast={toast} />
+        <StudentsTab students={students} teachers={teachers} groups={groups} setStudents={setStudents} canDelete={true} canAdd={true} toast={toast} />
       )}
 
       {tab === "groups" && (
@@ -1926,18 +1926,42 @@ function CoordinatorApp({ user, onLogout, allReports, allTrials, setAllTrials, s
 
       {tab === "teachers" && (
         <div>
-          <PageTitle emoji="👩‍🏫" title="Педагоги" />
+          <PageTitle emoji="👥" title="Сотрудники" action={<Btn onClick={() => setModal("addTeacher")} color={C.blueDark}>+ Добавить</Btn>} />
+
+          {teachers.filter(t => t.role === "coordinator").length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: C.coord, marginBottom: 10 }}>🗂️ Координаторы</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 }}>
+                {teachers.filter(t => t.role === "coordinator").map(t => (
+                  <Card key={t.id} style={{ borderTop: `4px solid ${C.coord}` }}>
+                    <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 8 }}>
+                      <Av l={t.avatar} color={C.coord} size={40} photoUrl={t.photoUrl} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 800 }}>{t.name}</div>
+                        <Badge text="🗂️ Координатор" color={C.coord} />
+                        {t.phone && <div style={{ fontSize: 12, color: C.muted }}>📞 {t.phone}</div>}
+                      </div>
+                      <button onClick={() => { sb.del("ak_teachers", t.id); setTeachers(p => p.filter(x => x.id !== t.id)); toast("Удалено"); }} style={{ background: C.danger + "15", border: "none", borderRadius: 8, padding: "5px 8px", cursor: "pointer", fontSize: 14, color: C.danger }}>🗑️</button>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ fontSize: 13, fontWeight: 800, color: C.blueDark, marginBottom: 10 }}>👩‍🏫 Педагоги</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 }}>
-            {teachers.map(t => (
+            {teachers.filter(t => t.role === "teacher").map(t => (
               <Card key={t.id} style={{ borderTop: `4px solid ${t.color}` }}>
                 <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 10 }}>
                   <Av l={t.avatar} color={t.color} size={46} photoUrl={t.photoUrl} />
-                  <div>
+                  <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 800 }}>{t.name}</div>
                     <div style={{ fontSize: 12, color: C.muted }}>{t.subject}</div>
                     {t.format && <Badge text={FORMAT_LABELS[t.format] || t.format} color={FORMAT_COLORS[t.format] || C.blue} />}
                     {t.phone && <div style={{ fontSize: 12, color: C.muted }}>📞 {t.phone}</div>}
                   </div>
+                  <button onClick={() => { sb.del("ak_teachers", t.id); setTeachers(p => p.filter(x => x.id !== t.id)); toast("Удалено"); }} style={{ background: C.danger + "15", border: "none", borderRadius: 8, padding: "5px 8px", cursor: "pointer", fontSize: 14, color: C.danger }}>🗑️</button>
                 </div>
                 {t.duties && (
                   <div style={{ background: C.blueLight, borderRadius: 8, padding: "8px 10px", fontSize: 12, color: C.text }}>
@@ -1947,6 +1971,68 @@ function CoordinatorApp({ user, onLogout, allReports, allTrials, setAllTrials, s
               </Card>
             ))}
           </div>
+
+          {teachers.filter(t => !["teacher","coordinator"].includes(t.role)).length > 0 && (
+            <div style={{ marginTop: 20 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: C.muted, marginBottom: 10 }}>👔 Другие сотрудники</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 }}>
+                {teachers.filter(t => !["teacher","coordinator"].includes(t.role)).map(t => (
+                  <Card key={t.id} style={{ borderTop: `4px solid ${t.color}` }}>
+                    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                      <Av l={t.avatar} color={t.color} size={40} photoUrl={t.photoUrl} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 800 }}>{t.name}</div>
+                        <div style={{ fontSize: 12, color: C.muted }}>{t.position || t.subject}</div>
+                        {t.phone && <div style={{ fontSize: 12, color: C.muted }}>📞 {t.phone}</div>}
+                      </div>
+                      <button onClick={() => { sb.del("ak_teachers", t.id); setTeachers(p => p.filter(x => x.id !== t.id)); toast("Удалено"); }} style={{ background: C.danger + "15", border: "none", borderRadius: 8, padding: "5px 8px", cursor: "pointer", fontSize: 14, color: C.danger }}>🗑️</button>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <Modal open={modal === "addTeacher"} onClose={() => setModal(null)} title="👥 Новый сотрудник">
+            <div style={{ marginBottom: 16 }}>
+              <Label>РОЛЬ <span style={{ color: C.danger }}>*</span></Label>
+              <div style={{ display: "flex", gap: 10 }}>
+                {[{ val: "teacher", icon: "👩‍🏫", label: "Педагог", color: C.blueDark }, { val: "other", icon: "➕", label: "Другое", color: C.muted }].map(opt => (
+                  <button key={opt.val} onClick={() => setCoordNewStaff(p => ({...p, staffRole: opt.val}))} style={{ flex: 1, padding: "12px", borderRadius: 12, cursor: "pointer", fontFamily: "inherit", fontWeight: 700, fontSize: 14, background: coordNewStaff.staffRole === opt.val ? opt.color : C.blueLight, color: coordNewStaff.staffRole === opt.val ? "#fff" : C.muted, border: `2px solid ${coordNewStaff.staffRole === opt.val ? opt.color : C.border}` }}>{opt.icon} {opt.label}</button>
+                ))}
+              </div>
+            </div>
+            <FInput label="ИМЯ" value={coordNewStaff.name} onChange={v => setCoordNewStaff(p => ({...p, name: v}))} required />
+            <FInput label="ТЕЛЕФОН" value={coordNewStaff.phone} onChange={v => setCoordNewStaff(p => ({...p, phone: v}))} placeholder="+996 700 ..." />
+            {coordNewStaff.staffRole === "teacher" && (
+              <>
+                <FInput label="ПРЕДМЕТ" value={coordNewStaff.subject} onChange={v => setCoordNewStaff(p => ({...p, subject: v}))} />
+                <FInput label="СТАВКА (сом/урок)" value={coordNewStaff.rate} onChange={v => setCoordNewStaff(p => ({...p, rate: v}))} type="number" />
+                <FSelect label="ФОРМАТ" value={coordNewStaff.format} onChange={v => setCoordNewStaff(p => ({...p, format: v}))} options={FORMATS.map(f => ({ value: f, label: FORMAT_LABELS[f] }))} />
+              </>
+            )}
+            {coordNewStaff.staffRole === "other" && (
+              <FInput label="ДОЛЖНОСТЬ" value={coordNewStaff.position} onChange={v => setCoordNewStaff(p => ({...p, position: v}))} placeholder="СММ, Психолог, Администратор..." required />
+            )}
+            <FTextarea label="ОБЯЗАННОСТИ" value={coordNewStaff.duties} onChange={v => setCoordNewStaff(p => ({...p, duties: v}))} rows={2} />
+            <div style={{ background: C.blueLight, borderRadius: 12, padding: 14, marginBottom: 4 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: C.blueDark, marginBottom: 10 }}>🔐 Данные для входа</div>
+              <FInput label="ЛОГИН" value={coordNewStaff.login} onChange={v => setCoordNewStaff(p => ({...p, login: v}))} required />
+              <FInput label="ПАРОЛЬ" value={coordNewStaff.password} onChange={v => setCoordNewStaff(p => ({...p, password: v}))} required />
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <Btn full color={C.blueDark} disabled={!coordNewStaff.name || !coordNewStaff.login || !coordNewStaff.password} onClick={() => {
+                const color = TEACHER_COLORS[teachers.length % TEACHER_COLORS.length];
+                const t = { id: Date.now(), name: coordNewStaff.name, subject: coordNewStaff.staffRole === "other" ? (coordNewStaff.position || "Другое") : coordNewStaff.subject, avatar: coordNewStaff.name[0].toUpperCase(), color, role: coordNewStaff.staffRole === "teacher" ? "teacher" : "other", login: coordNewStaff.login.toLowerCase().trim(), password: coordNewStaff.password, phone: coordNewStaff.phone, rate: Number(coordNewStaff.rate) || 0, format: coordNewStaff.format, duties: coordNewStaff.duties, position: coordNewStaff.position, staffRole: coordNewStaff.staffRole };
+                setTeachers(p => [...p, t]);
+                sb.add("ak_teachers", t);
+                setCoordNewStaff({ name: "", subject: "", phone: "", rate: "600", login: "", password: "", format: "выезд", duties: "", staffRole: "teacher", position: "" });
+                setModal(null);
+                toast(`✅ ${coordNewStaff.name} добавлен!`);
+              }}>Добавить</Btn>
+              <Btn outline color={C.muted} onClick={() => setModal(null)}>Отмена</Btn>
+            </div>
+          </Modal>
         </div>
       )}
 
